@@ -1,17 +1,24 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.Remoting.Messaging;
 using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
+using Jotunn.Configs;
 using Jotunn.Entities;
 using Jotunn.Managers;
 using Jotunn.Utils;
 using MonoMod.Utils;
 using UnityEngine;
 using valheimmod;
+using static valheimmod.valheimmod;
 
 namespace valheimmod
 {
+    
+
+
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     //[NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
@@ -20,28 +27,93 @@ namespace valheimmod
         public const string PluginGUID = "com.jotunn.valheimmod";
         public const string PluginName = "valheimmod";
         public const string PluginVersion = "0.0.1";
+        public static bool SpecialJumpTriggered = false; // Flag to indicate if the special jump key is pressed down
+        public static int SpecialJumpForce = 15; // Set the jump force for the special jump
+        public static int DefaultJumpForce = 8; // Set the default jump force
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
         public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        public class ModInput
+        {
+            public static ConfigEntry<KeyCode> SpecialJumpKeyConfig;
+            public static ConfigEntry<InputManager.GamepadButton> SpecialJumpGamepadConfig;
 
+            public static ButtonConfig SpecialJumpButton { get; private set; }
+
+            public static void AddInputs(ConfigFile config)
+            {
+                SpecialJumpKeyConfig = config.Bind(
+                   "Controls",
+                   "SpecialJumpKey",
+                   KeyCode.H,
+                   new ConfigDescription("Key to activate special jump")
+                );
+                SpecialJumpGamepadConfig = config.Bind(
+                   "Controls",
+                   "SpecialJumpKey Gamepad",
+                   InputManager.GamepadButton.ButtonNorth,
+                   new ConfigDescription("Gamepad button to activate special jump")
+                );
+
+                // Register the key with Jotunn's InputManager
+                SpecialJumpButton = new ButtonConfig
+                {
+                    Name = "SpecialJump",
+                    Key = SpecialJumpKeyConfig.Value,
+                    Config = SpecialJumpKeyConfig,
+                    GamepadConfig = SpecialJumpGamepadConfig,
+                    HintToken = "$special_jump",
+                    BlockOtherInputs = true,
+                };
+                InputManager.Instance.AddButton("com.jotunn.valheimmod", SpecialJumpButton);
+            }
+
+            public static bool IsSpecialJumpHeld()
+            {
+                // Only check input if the game is focused and not in a background thread
+                //return UnityEngine.Input.GetKey(KeyCode.Space);
+                if (ZInput.GetButton(ModInput.SpecialJumpButton.Name))
+                {
+                    Jotunn.Logger.LogInfo("Special jump button is pressed down");
+                    SpecialJumpTriggered = true;
+                    Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
+                }
+                return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
+            }
+
+        }
+
+        private void AddInputs()
+        {
+            // This method is called to add custom inputs to the game
+            // You can add more inputs here if needed
+            Config.SaveOnConfigSet = true;
+            ModInput.AddInputs(Config);
+        }
         private void Awake()
         {
             // Jotunn comes with its own Logger class to provide a consistent Log style for all mods using it
             Jotunn.Logger.LogInfo("valheimmod has landed");
             Harmony harmony = new Harmony(PluginGUID);
             harmony.PatchAll();
+            AddInputs();
+
 
             // To learn more about Jotunn's features, go to
             // https://valheim-modding.github.io/Jotunn/tutorials/overview.html
         }
-    }
-    public static class InputHelper
-    {
-        public static bool IsSpaceHeld()
+        private void Update()
         {
-            // Only check input if the game is focused and not in a background thread
-            return UnityEngine.Input.GetKey(KeyCode.Space);
+            if (ZInput.instance != null)
+            {
+                if (ModInput.IsSpecialJumpHeld() && Player.m_localPlayer.IsOnGround() && !Player.m_localPlayer.InAttack() && !Player.m_localPlayer.InDodge())
+                {   
+                    Jotunn.Logger.LogInfo("Special jump key is held down, triggering jump action");
+                    SpecialJumpTriggered = true;
+                    Player.m_localPlayer.Jump(); // Jotunn.Logger.LogInfo("Special jump key is held down");
+                }
+            }
         }
     }
     public static class JumpState
@@ -56,17 +128,28 @@ namespace valheimmod
         {
             if (__instance.IsPlayer())
             {
-                bool specialJump = InputHelper.IsSpaceHeld();
+                bool specialJump = false;
+                if (Player.m_localPlayer != null && Player.m_localPlayer == __instance)
+                {
+                    specialJump = valheimmod.SpecialJumpTriggered;
+                }
                 JumpState.SpecialJumpActive[__instance] = specialJump;
+                Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
                 if (specialJump)
                 {
-                    Jotunn.Logger.LogInfo("Jumped with space held");
-                    __instance.m_jumpForce = 15;
+                    Jotunn.Logger.LogInfo("Jumped with special jump key");
+                    __instance.m_jumpForce = SpecialJumpForce;
                 }
+                else
+                {
+                    Jotunn.Logger.LogInfo("Jumped with default jump key");
+                    __instance.m_jumpForce = DefaultJumpForce; // Default jump force
+                }
+                valheimmod.SpecialJumpTriggered = false; // Reset the flag
             }
-
         }
     }
+
     [HarmonyPatch(typeof(Character), "UpdateGroundContact")]
     class Character_Landing_Patch
     {
