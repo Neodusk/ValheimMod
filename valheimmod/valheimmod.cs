@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using BepInEx;
@@ -30,6 +31,8 @@ namespace valheimmod
         public static bool SpecialJumpTriggered = false; // Flag to indicate if the special jump key is pressed down
         public static int SpecialJumpForce = 15; // Set the jump force for the special jump
         public static int DefaultJumpForce = 8; // Set the default jump force
+        public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
+        public static Texture2D TestTex;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -38,7 +41,6 @@ namespace valheimmod
         {
             public static ConfigEntry<KeyCode> SpecialJumpKeyConfig;
             public static ConfigEntry<InputManager.GamepadButton> SpecialJumpGamepadConfig;
-
             public static ButtonConfig SpecialJumpButton { get; private set; }
 
             public static void AddInputs(ConfigFile config)
@@ -77,6 +79,7 @@ namespace valheimmod
                 {
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
                     SpecialJumpTriggered = true;
+                    Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, true);
                     Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
                 }
                 return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
@@ -84,6 +87,23 @@ namespace valheimmod
 
         }
 
+        private void AddStatusEffects()
+        {
+            StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
+            effect.name = "SpecialJumpEffect";
+            effect.m_name = "$special_jumpeffect";
+            effect.m_tooltip = "$special_jumpeffect_tooltip";
+            effect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f));
+            effect.m_startMessageType = MessageHud.MessageType.Center;
+            effect.m_startMessage = "$special_jumpeffect_start";
+            effect.m_stopMessageType = MessageHud.MessageType.Center;
+            effect.m_stopMessage = "$special_jumpeffect_stop";
+            effect.m_ttl = 10f;
+            JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
+
+
+
+        }
         private void AddInputs()
         {
             // This method is called to add custom inputs to the game
@@ -91,13 +111,48 @@ namespace valheimmod
             Config.SaveOnConfigSet = true;
             ModInput.AddInputs(Config);
         }
+
+        private void LoadAssets()
+        {
+            // https://valheim-modding.github.io/Jotunn/tutorials/asset-loading.html
+            string modPath = Path.GetDirectoryName(Info.Location);
+
+            // Load texture from filesystem
+            TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
+            Sprite TestSprite = Sprite.Create(TestTex, new Rect(0f, 0f, TestTex.width, TestTex.height), Vector2.zero);
+
+            // Load asset bundle from filesystem
+            //TestAssets = AssetUtils.LoadAssetBundle(Path.Combine(modPath, "Assets/jotunnlibtest"));
+            //Jotunn.Logger.LogInfo(TestAssets);
+
+            // Print Embedded Resources
+            Jotunn.Logger.LogInfo($"Embedded resources: {string.Join(", ", typeof(valheimmod).Assembly.GetManifestResourceNames())}");
+
+            // Load asset bundles from embedded resources
+        }
+
+        private void AddLocs()
+        {
+            // Use the instance of the CustomLocalization object instead of trying to call it statically  
+            Localization.AddTranslation("English", new Dictionary<string, string>
+           {
+               {"special_jumpeffect", "Super jump" },
+               {"special_jumpeffect_tooltip", "This is a tooltip" },
+               {"$special_jumpeffect_start", "You feel lighter" },
+               {"special_jumpeffect_stop", "You feel heavier" }
+           });
+        }
+
         private void Awake()
         {
             // Jotunn comes with its own Logger class to provide a consistent Log style for all mods using it
             Jotunn.Logger.LogInfo("valheimmod has landed");
             Harmony harmony = new Harmony(PluginGUID);
             harmony.PatchAll();
+            LoadAssets();
+            AddLocs();
             AddInputs();
+            AddStatusEffects();
 
 
             // To learn more about Jotunn's features, go to
