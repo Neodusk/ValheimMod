@@ -52,7 +52,7 @@ namespace valheimmod
                 SpecialJumpGamepadConfig = config.Bind(
                    "Controls",
                    "SpecialJumpKey Gamepad",
-                   InputManager.GamepadButton.ButtonNorth,
+                   InputManager.GamepadButton.DPadUp,
                    new ConfigDescription("Gamepad button to activate special jump")
                 );
 
