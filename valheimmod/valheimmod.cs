@@ -37,6 +37,22 @@ namespace valheimmod
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
         public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+
+        private void AddStatusEffects()
+        {
+            StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
+            effect.name = "SpecialJumpEffect";
+            effect.m_name = "$special_jumpeffect";
+            effect.m_tooltip = "$special_jumpeffect_tooltip";
+            effect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, TestTex.width, TestTex.height), new Vector2(0.5f, 0.5f));
+            effect.m_startMessageType = MessageHud.MessageType.Center;
+            effect.m_startMessage = "$special_jumpeffect_start";
+            effect.m_stopMessageType = MessageHud.MessageType.Center;
+            effect.m_stopMessage = "$special_jumpeffect_stop";
+            effect.m_ttl = 10f;
+            JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
+
+        }
         public class ModInput
         {
             public static ConfigEntry<KeyCode> SpecialJumpKeyConfig;
@@ -78,8 +94,13 @@ namespace valheimmod
                 if (ZInput.GetButton(ModInput.SpecialJumpButton.Name))
                 {
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
-                    SpecialJumpTriggered = true;
-                    Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, true);
+                    Jotunn.Logger.LogInfo($"JumpSpecialEffect StatusEffect Duration: {valheimmod.JumpSpecialEffect.StatusEffect.GetDuration()}");
+                    Jotunn.Logger.LogInfo($"JumpSpecialEffect StatusEffect IsDone: {valheimmod.JumpSpecialEffect.StatusEffect.IsDone()}");
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    {
+                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, true);
+                        SpecialJumpTriggered = true;
+                    }
                     Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
                 }
                 return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
@@ -87,23 +108,6 @@ namespace valheimmod
 
         }
 
-        private void AddStatusEffects()
-        {
-            StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
-            effect.name = "SpecialJumpEffect";
-            effect.m_name = "$special_jumpeffect";
-            effect.m_tooltip = "$special_jumpeffect_tooltip";
-            effect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f));
-            effect.m_startMessageType = MessageHud.MessageType.Center;
-            effect.m_startMessage = "$special_jumpeffect_start";
-            effect.m_stopMessageType = MessageHud.MessageType.Center;
-            effect.m_stopMessage = "$special_jumpeffect_stop";
-            effect.m_ttl = 10f;
-            JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
-
-
-
-        }
         private void AddInputs()
         {
             // This method is called to add custom inputs to the game
