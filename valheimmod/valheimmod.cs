@@ -120,17 +120,20 @@ namespace valheimmod
                         SpecialJumpTriggered = true;
                         Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
                     }
-                    else if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    else
                     {
-                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                        {
+                            Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                        }
                     }
-                    else if ((ZInput.GetButton("Jump") && hadPending))
-                    {
-                        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
-                        SpecialJumpTriggered = true;
-                        return ZInput.GetButton("Jump");
-                    }
+                }
+                if ((ZInput.GetButton("Jump") && hadPending))
+                {
+                    Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
+                    SpecialJumpTriggered = true;
+                    return ZInput.GetButton("Jump");
                 }
                 return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
             }
