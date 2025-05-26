@@ -64,6 +64,81 @@ namespace valheimmod
             pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
             pendeffect.m_stopMessage = "$pending_special_jumpeffect_stop";
             pendeffect.m_ttl = 0f; // No TTL for pending effect
+            GameObject frostPrefab = ZNetScene.instance.GetPrefab("vfx_Frost");
+            GameObject leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
+            GameObject leafPuffHeathPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff_heath");
+            GameObject iceShardPrefab = ZNetScene.instance.GetPrefab("fx_iceshard_hit");
+            GameObject fireworkPrefab = ZNetScene.instance.GetPrefab("vfx_ghost_death");
+            GameObject soundPrefab = ZNetScene.instance.GetPrefab("sfx_Abomination_Attack2_slam_whoosh");
+            var effectList = new List<EffectList.EffectData>();
+
+            if (frostPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = frostPrefab,
+                    m_enabled = true,
+                    m_attach = true
+                });
+            }
+            if (leafPuffPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = leafPuffPrefab,
+                    m_enabled = true,
+                    m_attach = true,
+                    m_follow = true,
+                });
+            } if (leafPuffHeathPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = leafPuffHeathPrefab,
+                    m_enabled = true,
+                    m_attach = true,
+                    m_follow = true,
+                });
+            }if (fireworkPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = fireworkPrefab,
+                    m_enabled = true,
+                    m_attach = true,
+                    m_follow = true,
+                });
+            }
+            if (iceShardPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = iceShardPrefab,
+                    m_enabled = true,
+                    m_attach = true,
+                    m_follow = true,
+                });
+            }
+
+            if (soundPrefab != null)
+            {
+                effectList.Add(new EffectList.EffectData
+                {
+                    m_prefab = soundPrefab,
+                    m_enabled = true,
+                    m_attach = false,
+                    m_follow = false,
+                });
+            }
+
+
+            pendeffect.m_startEffects = new EffectList
+            {
+                m_effectPrefabs = effectList.ToArray()
+            };
+
+            // Unsubscribe so it only runs once
+            PrefabManager.OnPrefabsRegistered -= AddStatusEffects;
             JumpPendingSpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
 
         }
@@ -188,7 +263,7 @@ namespace valheimmod
             LoadAssets();
             AddLocs();
             AddInputs();
-            AddStatusEffects();
+            PrefabManager.OnPrefabsRegistered += AddStatusEffects;
 
 
             // To learn more about Jotunn's features, go to
@@ -204,7 +279,7 @@ namespace valheimmod
                 }
             }
         }
-    }
+
     public static class JumpState
     {
         public static Dictionary<Character, bool> SpecialJumpActive = new Dictionary<Character, bool>();
@@ -304,5 +379,33 @@ class NoFallDamage_SEMan_Patch
             damage = 0f;
             Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
         }
+    }
+}
+
+[HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
+class StatusEffect_Update_Patch
+{
+    private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
+    static void Postfix(StatusEffect __instance, Character ___m_character)
+    {
+        // TODO: make this its own function
+        if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
+        {
+            // Only spawn if enough time has passed (e.g., 1 second)
+            float now = Time.time;
+            if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
+            {
+                lastVfxTime[___m_character] = now;
+
+                Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
+                var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
+                if (leafPuffPrefab != null)
+                {
+                    var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
+                    vfx.transform.SetParent(___m_character.transform);
+                }
+            }
+        }
+    }
     }
 }
