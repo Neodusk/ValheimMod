@@ -10,6 +10,7 @@ using Jotunn.Configs;
 using Jotunn.Entities;
 using Jotunn.Managers;
 using Jotunn.Utils;
+using Mono.Security.Cryptography;
 using MonoMod.Utils;
 using UnityEngine;
 using valheimmod;
@@ -104,8 +105,10 @@ namespace valheimmod
             {
                 // Only check input if the game is focused and not in a background thread
                 //return UnityEngine.Input.GetKey(KeyCode.Space);
-                if (ZInput.GetButton(ModInput.SpecialJumpButton.Name))
+                bool hadPending = false;
+                if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) || ZInput.GetButton(ModInput.SpecialJumpButton.Name)))
                 {
+                    hadPending = true;
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
                     Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
                     Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
@@ -117,13 +120,16 @@ namespace valheimmod
                         SpecialJumpTriggered = true;
                         Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
                     }
-                    else
+                    else if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
                     {
-                        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
-                        {
-                            Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
-                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
-                        }
+                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                    }
+                    else if ((ZInput.GetButton("Jump") && hadPending))
+                    {
+                        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
+                        SpecialJumpTriggered = true;
+                        return ZInput.GetButton("Jump");
                     }
                 }
                 return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
@@ -192,8 +198,6 @@ namespace valheimmod
                 if (ModInput.IsSpecialJumpHeld() && Player.m_localPlayer.IsOnGround() && !Player.m_localPlayer.InAttack() && !Player.m_localPlayer.InDodge())
                 {   
                     Jotunn.Logger.LogInfo("Special jump key is held down, triggering jump action");
-                    SpecialJumpTriggered = true;
-                    Player.m_localPlayer.Jump(); // Jotunn.Logger.LogInfo("Special jump key is held down");
                 }
             }
         }
@@ -229,6 +233,9 @@ namespace valheimmod
                 }
                 valheimmod.SpecialJumpTriggered = false; // Reset the flag
             }
+            bool s2;
+            s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
+            Jotunn.Logger.LogInfo($"prefix jump checking fall damage. Special jump active: {s2}");
         }
     }
 
@@ -240,8 +247,10 @@ namespace valheimmod
 
         static void Postfix(Character __instance)
         {
-            if (!__instance.IsPlayer() || !JumpState.SpecialJumpActive.TryGetValue(__instance, out bool specialJump) || !specialJump)
+            if (!__instance.IsPlayer() || !JumpState.SpecialJumpActive.TryGetValue(__instance, out bool specialJump) || !specialJump) { 
                 return;
+            }
+            Jotunn.Logger.LogInfo($"Character {__instance.m_name} is checking ground contact.");
             bool isOnGround = __instance.IsOnGround();
 
             // Get previous state (default to true to avoid false positives on first frame)
@@ -269,7 +278,9 @@ namespace valheimmod
 
             // Update state
             wasOnGround[__instance] = isOnGround;
-
+            bool s2;
+            s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
+            Jotunn.Logger.LogInfo($"postfix updateground checking fall damage. Special jump active: {s2}");
 
         }
     }
@@ -281,6 +292,9 @@ class NoFallDamage_SEMan_Patch
     {
         // Get the Character this SEMan belongs to
         Character character = __instance.m_character;
+        bool s2;
+        s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
+        Jotunn.Logger.LogInfo($"nofalldmg checking fall damage. Special jump active: {s2}");
         if (character != null && character.IsPlayer() &&
             JumpState.SpecialJumpActive.TryGetValue(character, out bool specialJump) && specialJump)
         {
