@@ -32,6 +32,7 @@ namespace valheimmod
         public static int SpecialJumpForce = 15; // Set the jump force for the special jump
         public static int DefaultJumpForce = 8; // Set the default jump force
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
+        public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
         public static Texture2D TestTex;
 
         // Use this class to add your own localization to the game
@@ -41,16 +42,28 @@ namespace valheimmod
         private void AddStatusEffects()
         {
             StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
+            StatusEffect pendeffect = ScriptableObject.CreateInstance<StatusEffect>();
             effect.name = "SpecialJumpEffect";
             effect.m_name = "$special_jumpeffect";
             effect.m_tooltip = "$special_jumpeffect_tooltip";
             effect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, TestTex.width, TestTex.height), new Vector2(0.5f, 0.5f));
             effect.m_startMessageType = MessageHud.MessageType.Center;
-            effect.m_startMessage = "$special_jumpeffect_start";
+            //effect.m_startMessage = "$special_jumpeffect_start";
             effect.m_stopMessageType = MessageHud.MessageType.Center;
-            effect.m_stopMessage = "$special_jumpeffect_stop";
             effect.m_ttl = 10f;
+            effect.m_cooldownIcon = effect.m_icon;
             JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
+
+            pendeffect.name = "PendingSpecialJumpEffect";
+            pendeffect.m_name = "$pending_special_jumpeffect";
+            pendeffect.m_tooltip = "$special_jumpeffect_tooltip";
+            pendeffect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, TestTex.width, TestTex.height), new Vector2(0.5f, 0.5f));
+            pendeffect.m_startMessageType = MessageHud.MessageType.Center;
+            pendeffect.m_startMessage = "$pending_special_jumpeffect_start";
+            pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
+            pendeffect.m_stopMessage = "$pending_special_jumpeffect_stop";
+            pendeffect.m_ttl = 0f; // No TTL for pending effect
+            JumpPendingSpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
 
         }
         public class ModInput
@@ -94,18 +107,27 @@ namespace valheimmod
                 if (ZInput.GetButton(ModInput.SpecialJumpButton.Name))
                 {
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
-                    Jotunn.Logger.LogInfo($"JumpSpecialEffect StatusEffect Duration: {valheimmod.JumpSpecialEffect.StatusEffect.GetDuration()}");
-                    Jotunn.Logger.LogInfo($"JumpSpecialEffect StatusEffect IsDone: {valheimmod.JumpSpecialEffect.StatusEffect.IsDone()}");
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
+                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
+                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
                     {
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, true);
+                        Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
+                        Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
+                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
                         SpecialJumpTriggered = true;
+                        Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
                     }
-                    Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
+                    else
+                    {
+                        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                        {
+                            Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                        }
+                    }
                 }
                 return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
             }
-
         }
 
         private void AddInputs()
@@ -141,9 +163,10 @@ namespace valheimmod
             Localization.AddTranslation("English", new Dictionary<string, string>
            {
                {"special_jumpeffect", "Super jump" },
-               {"special_jumpeffect_tooltip", "This is a tooltip" },
-               {"$special_jumpeffect_start", "You feel lighter" },
-               {"special_jumpeffect_stop", "You feel heavier" }
+               {"pending_special_jumpeffect", "Super jump" },
+               {"pending_special_jumpeffect_start", "You feel lighter" },
+               {"pending_special_jumpeffect_stop", "You feel heavier" },
+               {"special_jumpeffect_tooltip", "A wind gust aids you." },
            });
         }
 
