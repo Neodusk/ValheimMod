@@ -24,7 +24,7 @@ namespace valheimmod
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     //[NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
-    internal class valheimmod : BaseUnityPlugin
+    internal partial class valheimmod : BaseUnityPlugin
     {
         public const string PluginGUID = "com.jotunn.valheimmod";
         public const string PluginName = "valheimmod";
@@ -68,7 +68,7 @@ namespace valheimmod
             GameObject leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
             GameObject leafPuffHeathPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff_heath");
             GameObject iceShardPrefab = ZNetScene.instance.GetPrefab("fx_iceshard_hit");
-            GameObject fireworkPrefab = ZNetScene.instance.GetPrefab("vfx_ghost_death");
+            GameObject ghostDeathPrefab = ZNetScene.instance.GetPrefab("vfx_ghost_death");
             GameObject soundPrefab = ZNetScene.instance.GetPrefab("sfx_Abomination_Attack2_slam_whoosh");
             var effectList = new List<EffectList.EffectData>();
 
@@ -99,11 +99,11 @@ namespace valheimmod
                     m_attach = true,
                     m_follow = true,
                 });
-            }if (fireworkPrefab != null)
+            }if (ghostDeathPrefab != null)
             {
                 effectList.Add(new EffectList.EffectData
                 {
-                    m_prefab = fireworkPrefab,
+                    m_prefab = ghostDeathPrefab,
                     m_enabled = true,
                     m_attach = true,
                     m_follow = true,
@@ -144,19 +144,19 @@ namespace valheimmod
         }
         public class ModInput
         {
-            public static ConfigEntry<KeyCode> SpecialJumpKeyConfig;
-            public static ConfigEntry<InputManager.GamepadButton> SpecialJumpGamepadConfig;
-            public static ButtonConfig SpecialJumpButton { get; private set; }
+            public static ConfigEntry<KeyCode> SpecialRadialKeyConfig;
+            public static ConfigEntry<InputManager.GamepadButton> SpecialRadialGamepadConfig;
+            public static ButtonConfig SpecialRadialButton { get; private set; }
 
             public static void AddInputs(ConfigFile config)
             {
-                SpecialJumpKeyConfig = config.Bind(
+                SpecialRadialKeyConfig = config.Bind(
                    "Controls",
                    "SpecialJumpKey",
                    KeyCode.H,
                    new ConfigDescription("Key to activate special jump")
                 );
-                SpecialJumpGamepadConfig = config.Bind(
+                SpecialRadialGamepadConfig = config.Bind(
                    "Controls",
                    "SpecialJumpKey Gamepad",
                    InputManager.GamepadButton.DPadUp,
@@ -164,36 +164,44 @@ namespace valheimmod
                 );
 
                 // Register the key with Jotunn's InputManager
-                SpecialJumpButton = new ButtonConfig
+                SpecialRadialButton = new ButtonConfig
                 {
-                    Name = "SpecialJump",
-                    Key = SpecialJumpKeyConfig.Value,
-                    Config = SpecialJumpKeyConfig,
-                    GamepadConfig = SpecialJumpGamepadConfig,
+                    Name = "SpecialRadialButton",
+                    Key = SpecialRadialKeyConfig.Value,
+                    Config = SpecialRadialKeyConfig,
+                    GamepadConfig = SpecialRadialGamepadConfig,
                     HintToken = "$special_jump",
                     BlockOtherInputs = true,
                 };
-                InputManager.Instance.AddButton("com.jotunn.valheimmod", SpecialJumpButton);
+                InputManager.Instance.AddButton("com.jotunn.valheimmod", SpecialRadialButton);
             }
-
-            public static bool IsSpecialJumpHeld()
+            public static bool IsSpecialRadialButtonHeld()
             {
                 // Only check input if the game is focused and not in a background thread
                 //return UnityEngine.Input.GetKey(KeyCode.Space);
-                bool hadPending = false;
-                if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) || ZInput.GetButton(ModInput.SpecialJumpButton.Name)))
+                string radial_ability = GetRadialAbility();
+                if (radial_ability != "None")
                 {
-                    hadPending = true;
-                    Jotunn.Logger.LogInfo("Special jump button is pressed down");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
-                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    Jotunn.Logger.LogInfo($"Radial ability: {radial_ability}"); // Log the radial ability for debugging
+                }
+                if (radial_ability == "SuperJump")
+                {
+                    bool hadPending = false;
+                    if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
                     {
-                        Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
-                        SpecialJumpTriggered = true;
-                        Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
+                        hadPending = true;
+                        Jotunn.Logger.LogInfo("Special jump button is pressed down");
+                        Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
+                        Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
+                        if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                        {
+                            Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
+                            Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
+                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
+                            SpecialJumpTriggered = true;
+                            Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
+                        }
+
                     }
                     else
                     {
@@ -203,14 +211,62 @@ namespace valheimmod
                             Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
                         }
                     }
+                    if ((ZInput.GetButton("Jump") && hadPending))
+                    {
+                        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
+                        SpecialJumpTriggered = true;
+                        return ZInput.GetButton("Jump");
+                    }
+                    SetRadialAbility(0);
+                    CloseRadialMenu();
+                    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
                 }
-                if ((ZInput.GetButton("Jump") && hadPending))
+                if (ZInput.GetButton(ModInput.SpecialRadialButton.Name))
                 {
-                    Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
-                    SpecialJumpTriggered = true;
-                    return ZInput.GetButton("Jump");
+                    ShowRadialMenu();
                 }
-                return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
+                return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
+
+                //}public static bool IsSpecialJumpHeld()
+                //{
+                //    // Only check input if the game is focused and not in a background thread
+                //    //return UnityEngine.Input.GetKey(KeyCode.Space);
+                //    bool hadPending = false;
+                //    if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) || ZInput.GetButton(ModInput.SpecialJumpButton.Name)))
+                //    {
+                //        hadPending = true;
+                //        Jotunn.Logger.LogInfo("Special jump button is pressed down");
+                //        Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
+                //        Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
+                //        if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                //        {
+                //            Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
+                //            Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
+                //            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
+                //            SpecialJumpTriggered = true;
+                //            Player.m_localPlayer.Jump(); // Trigger the jump action when the button is held down
+                //        }
+                //        else
+                //        {
+                //            if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                //            {
+                //                Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                //                Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                //            }
+                //        }
+                //    }
+                //    if ((ZInput.GetButton("Jump") && hadPending))
+                //    {
+                //        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
+                //        SpecialJumpTriggered = true;
+                //        return ZInput.GetButton("Jump");
+                //    }
+                //    if (ZInput.GetButton(ModInput.SpecialJumpButton.Name))
+                //    {
+                //        ShowRadialMenu();
+                //    }
+                //    return ZInput.GetButton(ModInput.SpecialJumpButton.Name);
+                //}
             }
         }
 
@@ -273,8 +329,9 @@ namespace valheimmod
         {
             if (ZInput.instance != null)
             {
-                if (ModInput.IsSpecialJumpHeld() && Player.m_localPlayer.IsOnGround() && !Player.m_localPlayer.InAttack() && !Player.m_localPlayer.InDodge())
+                if (ModInput.IsSpecialRadialButtonHeld() && Player.m_localPlayer.IsOnGround() && !Player.m_localPlayer.InAttack() && !Player.m_localPlayer.InDodge())
                 {   
+                    //ShowRadialMenu();
                     Jotunn.Logger.LogInfo("Special jump key is held down, triggering jump action");
                 }
             }
@@ -363,49 +420,68 @@ namespace valheimmod
         }
     }
 }
-[HarmonyPatch(typeof(SEMan), nameof(SEMan.ModifyFallDamage))]
-class NoFallDamage_SEMan_Patch
-{
-    static void Prefix(SEMan __instance, float baseDamage, ref float damage)
+    [HarmonyPatch(typeof(SEMan), nameof(SEMan.ModifyFallDamage))]
+    class NoFallDamage_SEMan_Patch
     {
-        // Get the Character this SEMan belongs to
-        Character character = __instance.m_character;
-        bool s2;
-        s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
-        Jotunn.Logger.LogInfo($"nofalldmg checking fall damage. Special jump active: {s2}");
-        if (character != null && character.IsPlayer() &&
-            JumpState.SpecialJumpActive.TryGetValue(character, out bool specialJump) && specialJump)
+        static void Prefix(SEMan __instance, float baseDamage, ref float damage)
         {
-            damage = 0f;
-            Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
-        }
-    }
-}
-
-[HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
-class StatusEffect_Update_Patch
-{
-    private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
-    static void Postfix(StatusEffect __instance, Character ___m_character)
-    {
-        // TODO: make this its own function
-        if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
-        {
-            // Only spawn if enough time has passed (e.g., 1 second)
-            float now = Time.time;
-            if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
+            // Get the Character this SEMan belongs to
+            Character character = __instance.m_character;
+            bool s2;
+            s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
+            Jotunn.Logger.LogInfo($"nofalldmg checking fall damage. Special jump active: {s2}");
+            if (character != null && character.IsPlayer() &&
+                JumpState.SpecialJumpActive.TryGetValue(character, out bool specialJump) && specialJump)
             {
-                lastVfxTime[___m_character] = now;
-
-                Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
-                var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
-                if (leafPuffPrefab != null)
-                {
-                    var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
-                    vfx.transform.SetParent(___m_character.transform);
-                }
+                damage = 0f;
+                Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
             }
         }
     }
+
+
+    [HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
+    class StatusEffect_Update_Patch
+    {
+        private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
+        private static void SpecialJumpSEPatch(StatusEffect __instance, Character ___m_character)
+        {
+            if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
+            {
+                // Only spawn if enough time has passed (e.g., 1 second)
+                float now = Time.time;
+                if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
+                {
+                    lastVfxTime[___m_character] = now;
+
+                    Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
+                    var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
+                    if (leafPuffPrefab != null)
+                    {
+                        var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
+                        vfx.transform.SetParent(___m_character.transform);
+                    }
+                }
+            }
+        }
+        static void Postfix(StatusEffect __instance, Character ___m_character)
+        {
+            SpecialJumpSEPatch(__instance, ___m_character);
+        }
+    }
+
+    [HarmonyPatch(typeof(Character), "OnAttackTrigger")]
+    class Character_Attack_RadialBlock_Patch
+    {
+        static bool Prefix(Character __instance)
+        {
+            // Prevent attack if the radial menu is open
+            if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
+            {
+                Jotunn.Logger.LogInfo("Attack blocked: radial menu is open.");
+                return false; // Skip original method
+            }
+            return true; // Allow attack
+        }
     }
 }
