@@ -15,7 +15,7 @@ namespace valheimmod
     internal partial class valheimmod : BaseUnityPlugin
     {
         public static GameObject radialMenuInstance;
-        public static bool isRadialMenuOpen = false;
+        public static bool RadialMenuIsOpen = false;
         public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
         private static void SetRadialAbility(int index)
@@ -53,7 +53,7 @@ namespace valheimmod
 
         private static RadialAbility GetRadialAbility()
         {
-            if (!isRadialMenuOpen)
+            if (!RadialMenuIsOpen)
             {
                 return RadialAbility.None;
             }
@@ -64,37 +64,35 @@ namespace valheimmod
             }
             return RadialAbility.None;
         }
-        private static IEnumerator ResetBlockAttackFlag()
-        {
-            yield return null; // Wait one frame
-            blockAttackThisFrame = false;
-        }
+
+        /// <summary>
+        /// Closes the radial menu if it is open and blocks attack button status on close
+        /// </summary>
         private void CloseRadialMenu()
         {
             if (radialMenuInstance != null)
             {
                 radialMenuInstance.SetActive(false);
                 Jotunn.Logger.LogInfo("Radial menu closed.");
-                //GUIManager.BlockInput(false);
             }
             else
             {
                 Jotunn.Logger.LogWarning("Radial menu instance is null, cannot close.");
-                // Optionally, lock/hide cursor again if needed by your game
             }
-            isRadialMenuOpen = false;
+            RadialMenuIsOpen = false;
             // reset radial item clicked
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             SetRadialAbility(0);
-            blockAttackThisFrame = true;
-            StartCoroutine(ResetBlockAttackFlag()); // Fix: Ensure this method is called from an instance of MonoBehaviour
             ZInput.ResetButtonStatus("Attack"); 
         }
 
         private static List<GameObject> radialButtons = new List<GameObject>();
         private static int currentHighlightedIndex = -1;
 
+        /// <summary>
+        /// Updates highlighting of radial menu buttons based on mouse position.
+        /// </summary>
         private static void UpdateRadialHighlight()
         {
             if (radialMenuInstance == null || radialButtons.Count == 0) return;
@@ -118,6 +116,10 @@ namespace valheimmod
             }
             currentHighlightedIndex = highlighted;
         }
+
+        /// <summary>
+        /// Shows the radial menu for special abilities
+        /// </summary>
         private static void ShowRadialMenu()
         {
             if (radialMenuInstance == null)
@@ -156,7 +158,6 @@ namespace valheimmod
                     text.rectTransform.sizeDelta = new Vector2(60, 60);
 
                     int index = i;
-                    //buttonObj.GetComponent<Button>().onClick.AddListener(() => SetRadialAbility(index+1));
 
                     radialButtons.Add(buttonObj);
                 }
@@ -165,11 +166,9 @@ namespace valheimmod
             {
                 radialMenuInstance.SetActive(true);
             }
-            isRadialMenuOpen = true;
+            RadialMenuIsOpen = true;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-
-            //GUIManager.BlockInput(true);
         }
 
         public class RadialMenu : MonoBehaviour
