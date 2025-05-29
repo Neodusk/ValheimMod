@@ -75,7 +75,7 @@ namespace valheimmod
             {
                 radialMenuInstance.SetActive(false);
                 Jotunn.Logger.LogInfo("Radial menu closed.");
-                GUIManager.BlockInput(false);
+                //GUIManager.BlockInput(false);
             }
             else
             {
@@ -84,9 +84,12 @@ namespace valheimmod
             }
             isRadialMenuOpen = false;
             // reset radial item clicked
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
             SetRadialAbility(0);
             blockAttackThisFrame = true;
             StartCoroutine(ResetBlockAttackFlag()); // Fix: Ensure this method is called from an instance of MonoBehaviour
+            ZInput.ResetButtonStatus("Attack"); 
         }
 
         private static List<GameObject> radialButtons = new List<GameObject>();
@@ -163,8 +166,10 @@ namespace valheimmod
                 radialMenuInstance.SetActive(true);
             }
             isRadialMenuOpen = true;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
 
-            GUIManager.BlockInput(true);
+            //GUIManager.BlockInput(true);
         }
 
         public class RadialMenu : MonoBehaviour

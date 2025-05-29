@@ -506,43 +506,6 @@ namespace valheimmod
         }
     }
 
-    [HarmonyPatch(typeof(Character), "OnAttackTrigger")]
-    class Character_Attack_RadialBlock_Patch
-    {
-        static bool Prefix(Character __instance)
-        {
-            if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
-            {
-                Jotunn.Logger.LogInfo("Attack blocked: radial menu is open.");
-                return false;
-            }
-            if (valheimmod.blockAttackThisFrame)
-            {
-                Jotunn.Logger.LogInfo("Attack blocked: just closed radial menu.");
-                return false;
-            }
-            return true;
-        }
-    }
-    [HarmonyPatch(typeof(Character), "StartAttack")]
-        class Character_Attack_RadialBlock_Patch2
-        {
-            static bool Prefix(Character __instance)
-            {
-                if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
-                {
-                    Jotunn.Logger.LogInfo("Attack blocked: radial menu is open.");
-                    return false;
-                }
-                if (valheimmod.blockAttackThisFrame)
-                {
-                    Jotunn.Logger.LogInfo("Attack blocked: just closed radial menu.");
-                    return false;
-                }
-                return true;
-            }
-        }
-
     [HarmonyPatch(typeof(Player), "Update")]
     class Player_CameraBlock_RadialMenu_Patch
     {
@@ -566,6 +529,36 @@ namespace valheimmod
                     ZInput.instance.m_mouseDelta.Enable();
                 }
                 wasRadialMenuOpen = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
+    class Player_AttackInput_RadialBlock_Patch
+    {
+        static bool Prefix(Player __instance, float dt)
+        {
+            if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
+            {
+                Jotunn.Logger.LogInfo("Attack input blocked: radial menu is open.");
+                return false;
+            }
+            if (valheimmod.blockAttackThisFrame)
+            {
+                Jotunn.Logger.LogInfo("Attack input blocked: just closed radial menu.");
+                return false;
+            }
+            return true;
+        }
+    }
+    [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
+    class Hud_InRadial_RadialMenu_Patch
+    {
+        static void Postfix(ref bool __result)
+        {
+            if (valheimmod.isRadialMenuOpen)
+            {
+                __result = true;
             }
         }
     }
