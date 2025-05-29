@@ -22,28 +22,30 @@ namespace valheimmod
             radialItemClicked = index;
         }
 
-
-        List<string> RadialMenuOptions = new List<string>
+        public enum RadialAbility
         {
-            "SuperJump",
-            "None2",
-            "None3",
+            None = 0,
+            SuperJump,
+            None2,
+            None3
+        }
+
+        private static readonly RadialAbility[] RadialAbilityMap = new[]
+        {
+            RadialAbility.None,      // 0 (not used)
+            RadialAbility.SuperJump, // 1
+            RadialAbility.None2,  // 2
+            RadialAbility.None3       // 3
         };
-     
 
-        private static string GetRadialAbility()
+        private static RadialAbility GetRadialAbility()
         {
-            if (radialItemClicked > 0)
+            if (radialItemClicked > 0 && radialItemClicked < RadialAbilityMap.Length)
             {
                 Jotunn.Logger.LogInfo($"Radial item clicked: {radialItemClicked}");
+                return RadialAbilityMap[radialItemClicked];
             }
-            return radialItemClicked switch
-            {
-                1 => "SuperJump",
-                2 => "None2",
-                3 => "None3",
-                _ => "None"
-            };
+            return RadialAbility.None;
         }
 
         private static void CloseRadialMenu()

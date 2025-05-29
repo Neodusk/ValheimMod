@@ -180,10 +180,11 @@ namespace valheimmod
                 // Only check input if the game is focused and not in a background thread
                 //return UnityEngine.Input.GetKey(KeyCode.Space);
                 bool hadPending = false;
-                string radial_ability = GetRadialAbility();
-                if (radial_ability != "None")
+                RadialAbility radial_ability = GetRadialAbility();
+                string ability_name = radial_ability.ToString();
+                if (ability_name != "None")
                 {
-                    Jotunn.Logger.LogInfo($"Radial ability: {radial_ability}"); // Log the radial ability for debugging
+                    Jotunn.Logger.LogInfo($"Radial ability: {ability_name}"); // Log the radial ability for debugging
                 }
                 if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
                 {
@@ -201,7 +202,7 @@ namespace valheimmod
                     }
 
                 }
-                if (radial_ability == "SuperJump")
+                if (ability_name == "SuperJump")
                 {
                     
                     if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
