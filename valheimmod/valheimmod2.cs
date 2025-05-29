@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using BepInEx;
+using Jotunn.Managers;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,8 +40,23 @@ namespace valheimmod
             RadialAbility.None3       // 3
         };
 
+        private static string GetRadialAbilityName(RadialAbility ability)
+        {
+            return ability switch
+            {
+                RadialAbility.SuperJump => "Super Jump",
+                RadialAbility.None2 => "None 2",
+                RadialAbility.None3 => "None 3",
+                _ => "None"
+            };
+        }
+
         private static RadialAbility GetRadialAbility()
         {
+            if (!isRadialMenuOpen)
+            {
+                return RadialAbility.None;
+            }
             if (radialItemClicked > 0 && radialItemClicked < RadialAbilityMap.Length)
             {
                 Jotunn.Logger.LogInfo($"Radial item clicked: {radialItemClicked}");
@@ -47,23 +64,56 @@ namespace valheimmod
             }
             return RadialAbility.None;
         }
-
-        private static void CloseRadialMenu()
+        private static IEnumerator ResetBlockAttackFlag()
+        {
+            yield return null; // Wait one frame
+            blockAttackThisFrame = false;
+        }
+        private void CloseRadialMenu()
         {
             if (radialMenuInstance != null)
             {
                 radialMenuInstance.SetActive(false);
                 Jotunn.Logger.LogInfo("Radial menu closed.");
+                GUIManager.BlockInput(false);
             }
             else
             {
                 Jotunn.Logger.LogWarning("Radial menu instance is null, cannot close.");
-                isRadialMenuOpen = false;
                 // Optionally, lock/hide cursor again if needed by your game
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-
             }
+            isRadialMenuOpen = false;
+            // reset radial item clicked
+            SetRadialAbility(0);
+            blockAttackThisFrame = true;
+            StartCoroutine(ResetBlockAttackFlag()); // Fix: Ensure this method is called from an instance of MonoBehaviour
+        }
+
+        private static List<GameObject> radialButtons = new List<GameObject>();
+        private static int currentHighlightedIndex = -1;
+
+        private static void UpdateRadialHighlight()
+        {
+            if (radialMenuInstance == null || radialButtons.Count == 0) return;
+
+            Vector2 mousePos = Input.mousePosition;
+            int highlighted = -1;
+
+            for (int i = 0; i < radialButtons.Count; i++)
+            {
+                var rect = radialButtons[i].GetComponent<RectTransform>();
+                if (RectTransformUtility.RectangleContainsScreenPoint(rect, mousePos))
+                {
+                    highlighted = i;
+                }
+            }
+
+            for (int i = 0; i < radialButtons.Count; i++)
+            {
+                var img = radialButtons[i].GetComponent<Image>();
+                img.color = (i == highlighted) ? Color.yellow : Color.white;
+            }
+            currentHighlightedIndex = highlighted;
         }
         private static void ShowRadialMenu()
         {
@@ -80,7 +130,6 @@ namespace valheimmod
 
                 int segmentCount = 3;
                 float radius = 100f;
-
                 for (int i = 0; i < segmentCount; i++)
                 {
                     // Create Button
@@ -97,14 +146,16 @@ namespace valheimmod
                     GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
                     textObj.transform.SetParent(buttonObj.transform, false);
                     var text = textObj.GetComponent<Text>();
-                    text.text = $"Option {i + 1}";
+                    text.text = GetRadialAbilityName(RadialAbilityMap[i + 1]);
                     text.alignment = TextAnchor.MiddleCenter;
                     text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                     text.color = Color.black;
                     text.rectTransform.sizeDelta = new Vector2(60, 60);
 
                     int index = i;
-                    buttonObj.GetComponent<Button>().onClick.AddListener(() => SetRadialAbility(index+1));
+                    //buttonObj.GetComponent<Button>().onClick.AddListener(() => SetRadialAbility(index+1));
+
+                    radialButtons.Add(buttonObj);
                 }
             }
             else
@@ -112,9 +163,8 @@ namespace valheimmod
                 radialMenuInstance.SetActive(true);
             }
             isRadialMenuOpen = true;
-            
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+
+            GUIManager.BlockInput(true);
         }
 
         public class RadialMenu : MonoBehaviour
@@ -145,6 +195,7 @@ namespace valheimmod
             void OnSegmentClicked(int index)
             {
                 Debug.Log($"Radial menu option {index + 1} clicked!");
+                // todo maybe we can set pending spells here instead
                 // Add your action here
             }
         }

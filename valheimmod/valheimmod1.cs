@@ -35,6 +35,7 @@ namespace valheimmod
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
         public static Texture2D TestTex;
+        public static bool blockAttackThisFrame = false;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -179,16 +180,81 @@ namespace valheimmod
             {
                 // Only check input if the game is focused and not in a background thread
                 //return UnityEngine.Input.GetKey(KeyCode.Space);
-                bool hadPending = false;
+                //bool hadPending = false;
+                //RadialAbility radial_ability = GetRadialAbility();
+                //string ability_name = radial_ability.ToString();
+                //if (ability_name != "None")
+                //{
+                //    Jotunn.Logger.LogInfo($"Radial ability: {ability_name}"); // Log the radial ability for debugging
+                //}
+                //if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
+                //{
+                //    hadPending = true;
+                //    Jotunn.Logger.LogInfo("Special jump button is pressed down");
+                //    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
+                //    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
+                //    if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                //    {
+                //        Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
+                //        Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
+                //        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
+                //        SpecialJumpTriggered = true;
+                //        Jotunn.Logger.LogInfo($"SpecialJumpTriggered1 = {SpecialJumpTriggered}");
+                //    }
+
+                //}
+                //if (ability_name == "SuperJump")
+                //{
+                    
+                //    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                //    {
+                //        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                //        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                //    }
+                //    if ((ZInput.GetButton("Jump") && hadPending))
+                //    {
+                //        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
+                //        SpecialJumpTriggered = true;
+                //        Jotunn.Logger.LogInfo($"SpecialJumpTriggered2 = {SpecialJumpTriggered}");
+                //        return ZInput.GetButton("Jump");
+                //    }
+                //    //SetRadialAbility(0);
+                //    //SetRadialAbility(currentHighlightedIndex + 1);
+                //    //CloseRadialMenu();
+                //    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
+                //}
+                if (ZInput.GetButton(ModInput.SpecialRadialButton.Name))
+                {
+                    ShowRadialMenu();
+                }
+                return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
+            }
+
+
+            public static bool CallPendingSpecialJump()
+            {
+                // If user picks the superjump buff in radial, give them the buff
                 RadialAbility radial_ability = GetRadialAbility();
                 string ability_name = radial_ability.ToString();
-                if (ability_name != "None")
+                if (ability_name == RadialAbility.SuperJump.ToString())
                 {
-                    Jotunn.Logger.LogInfo($"Radial ability: {ability_name}"); // Log the radial ability for debugging
+
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    {
+                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
+                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                    }
+                    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
                 }
+                return false;
+            }
+
+
+            public static void CallSpecialJump()
+            {
+                // if the player presses the jump button when they have the jump pending buff, give super jump effect
                 if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
                 {
-                    hadPending = true;
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
                     Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
                     Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
@@ -202,30 +268,15 @@ namespace valheimmod
                     }
 
                 }
-                if (ability_name == "SuperJump")
-                {
-                    
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
-                    {
-                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
-                    }
-                    if ((ZInput.GetButton("Jump") && hadPending))
-                    {
-                        Jotunn.Logger.LogInfo("Normal jump key is held down, triggering jump action");
-                        SpecialJumpTriggered = true;
-                        Jotunn.Logger.LogInfo($"SpecialJumpTriggered2 = {SpecialJumpTriggered}");
-                        return ZInput.GetButton("Jump");
-                    }
-                    SetRadialAbility(0);
-                    CloseRadialMenu();
-                    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
-                }
-                if (ZInput.GetButton(ModInput.SpecialRadialButton.Name))
-                {
-                    ShowRadialMenu();
-                }
-                return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
+            }
+            public static void CallPendingAbilities()
+            {
+                CallPendingSpecialJump();
+            }
+
+            public static void CallSpecialAbilities()
+            {
+                CallSpecialJump();
             }
         }
 
@@ -288,10 +339,36 @@ namespace valheimmod
         {
             if (ZInput.instance != null)
             {
-                if (ModInput.IsSpecialRadialButtonHeld() && Player.m_localPlayer.IsOnGround() && !Player.m_localPlayer.InAttack() && !Player.m_localPlayer.InDodge())
+                if (ModInput.IsSpecialRadialButtonHeld() && Player.m_localPlayer.IsOnGround())
                 {   
                     //ShowRadialMenu();
                     Jotunn.Logger.LogInfo("Special jump key is held down, triggering jump action");
+                }
+                if (isRadialMenuOpen)
+                {
+                    //Cursor.lockState = CursorLockMode.None;
+                    //Cursor.visible = true;
+                    UpdateRadialHighlight();
+                    if (Input.GetMouseButtonDown(0) && currentHighlightedIndex >= 0)
+                    {
+                        SetRadialAbility(currentHighlightedIndex + 1);
+                        Jotunn.Logger.LogInfo($"Radial ability set to: {RadialAbilityMap[currentHighlightedIndex + 1]}");
+                        ModInput.CallPendingAbilities();
+                        CloseRadialMenu();
+                    }
+                    // Optional: close on right click
+                    if (Input.GetMouseButtonDown(1))
+                    {
+                        // Optional: close on right click
+                        if (Input.GetMouseButtonDown(1))
+                        {
+                            CloseRadialMenu();
+                        }
+                    }
+                }
+                if (!isRadialMenuOpen)
+                {
+                    ModInput.CallSpecialAbilities();
                 }
             }
         }
@@ -434,13 +511,62 @@ namespace valheimmod
     {
         static bool Prefix(Character __instance)
         {
-            // Prevent attack if the radial menu is open
             if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
             {
                 Jotunn.Logger.LogInfo("Attack blocked: radial menu is open.");
-                return false; // Skip original method
+                return false;
             }
-            return true; // Allow attack
+            if (valheimmod.blockAttackThisFrame)
+            {
+                Jotunn.Logger.LogInfo("Attack blocked: just closed radial menu.");
+                return false;
+            }
+            return true;
+        }
+    }
+    [HarmonyPatch(typeof(Character), "StartAttack")]
+        class Character_Attack_RadialBlock_Patch2
+        {
+            static bool Prefix(Character __instance)
+            {
+                if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
+                {
+                    Jotunn.Logger.LogInfo("Attack blocked: radial menu is open.");
+                    return false;
+                }
+                if (valheimmod.blockAttackThisFrame)
+                {
+                    Jotunn.Logger.LogInfo("Attack blocked: just closed radial menu.");
+                    return false;
+                }
+                return true;
+            }
+        }
+
+    [HarmonyPatch(typeof(Player), "Update")]
+    class Player_CameraBlock_RadialMenu_Patch
+    {
+        static bool wasRadialMenuOpen = false;
+
+        static void Prefix(Player __instance)
+        {
+            if (valheimmod.isRadialMenuOpen)
+            {
+                if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                {
+                    ZInput.instance.m_mouseDelta.Disable();
+                }
+                wasRadialMenuOpen = true;
+            }
+            else if (wasRadialMenuOpen)
+            {
+                // Re-enable mouse look when menu closes
+                if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                {
+                    ZInput.instance.m_mouseDelta.Enable();
+                }
+                wasRadialMenuOpen = false;
+            }
         }
     }
 }
