@@ -19,6 +19,7 @@ namespace valheimmod
         public static bool RadialMenuIsOpen = false;
         public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
+        public static int gamepadSelectedIndex = 0;
         private static void SetRadialAbility(int index)
         {
             Debug.Log($"Radial menu option {index} clicked!");
@@ -91,38 +92,19 @@ namespace valheimmod
         private static List<GameObject> radialButtons = new List<GameObject>();
         private static int currentHighlightedIndex = -1;
 
-        /// <summary>
-        /// Updates highlighting of radial menu buttons based on mouse position.
-        /// </summary>
-        private static void UpdateRadialHighlight()
+        ///<summary>
+        /// Updates the radial menu highlight based on gamepad selection
+        ///</summary>
+        private static void UpdateGamepadHighlight()
         {
-            return;
-            //if (radialMenuInstance == null || radialButtons.Count == 0) return;
-
-            //Vector2 mousePos = Input.mousePosition;
-            //int highlighted = -1;
-
-            //for (int i = 0; i < radialButtons.Count; i++)
-            //{
-            //    var rect = radialButtons[i].GetComponent<RectTransform>();
-            //    if (RectTransformUtility.RectangleContainsScreenPoint(rect, mousePos))
-            //    {
-            //        highlighted = i;
-            //    }
-            //}
-
-            //for (int i = 0; i < radialButtons.Count; i++)
-            //{
-            //    //var img = radialButtons[i].GetComponent<Image>();
-            //    //img.color = (i == highlighted) ? Color.yellow : Color.white;
-            //    var text = radialButtons[i].GetComponentInChildren<Text>();
-            //    if (text != null)
-            //    {
-            //        text.color = (i == highlighted) ? Color.yellow : Color.white;
-            //    }
-            //}
-            //currentHighlightedIndex = highlighted;
+            for (int i = 0; i < radialButtons.Count; i++)
+            {
+                var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                if (text != null)
+                    text.color = (i == gamepadSelectedIndex) ? Color.yellow : Color.white;
+            }
         }
+
 
         /// <summary>
         /// Shows the radial menu for special abilities
@@ -139,18 +121,6 @@ namespace valheimmod
                 // Create an empty GameObject for the menu
                 radialMenuInstance = new GameObject("RadialMenu");
                 radialMenuInstance.transform.SetParent(canvasObj.transform, false);
-
-                // Create the Radial Texture (Image)
-                //GameObject radialImageObj = new GameObject("RadialTexture", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                //radialImageObj.transform.SetParent(radialMenuInstance.transform, false);
-                //var radialImage = radialImageObj.GetComponent<Image>();
-                //radialImage.sprite = valheimmod.RadialSprite;
-                //radialImage.type = Image.Type.Filled;
-                //radialImage.fillMethod = Image.FillMethod.Radial360;
-                //radialImage.fillAmount = 1f; // Full circle
-                //radialImage.color = new Color(1f, 1f, 1f, 1f); // Slightly transparent
-
-                //radialImageObj.GetComponent<RectTransform>().sizeDelta = new Vector2(220, 220);
 
                 int segmentCount = 4;
                 float buttonRadius = 70f; // Set this to match your asset's segment center distance
@@ -219,7 +189,8 @@ namespace valheimmod
                         if (text != null) text.color = Color.white;
                         currentHighlightedIndex = -1;
                     });
-                    eventTrigger.triggers.Add(entryExit);
+                    eventTrigger.triggers.Add(entryExit); gamepadSelectedIndex = 0;
+                    UpdateGamepadHighlight();
 
                     radialButtons.Add(buttonObj);
                 }
@@ -231,57 +202,9 @@ namespace valheimmod
             RadialMenuIsOpen = true;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            gamepadSelectedIndex = 0;
+            UpdateGamepadHighlight();
         }
-        //private static void ShowRadialMenu()
-        //{
-        //    if (radialMenuInstance == null)
-        //    {
-        //        // Create Canvas
-        //        GameObject canvasObj = new GameObject("RadialMenuCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        //        Canvas canvas = canvasObj.GetComponent<Canvas>();
-        //        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-        //        // Create an empty GameObject for the menu
-        //        radialMenuInstance = new GameObject("RadialMenu");
-        //        radialMenuInstance.transform.SetParent(canvasObj.transform, false);
-
-        //        int segmentCount = 3;
-        //        float radius = 100f;
-        //        for (int i = 0; i < segmentCount; i++)
-        //        {
-        //            // Create Button
-        //            GameObject buttonObj = new GameObject($"Button_{i + 1}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        //            buttonObj.transform.SetParent(radialMenuInstance.transform, false);
-
-        //            // Set position in a circle
-        //            float angle = i * Mathf.PI * 2f / segmentCount;
-        //            Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-        //            buttonObj.GetComponent<RectTransform>().anchoredPosition = pos;
-        //            buttonObj.GetComponent<RectTransform>().sizeDelta = new Vector2(60, 60);
-
-        //            // Add Text
-        //            GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
-        //            textObj.transform.SetParent(buttonObj.transform, false);
-        //            var text = textObj.GetComponent<Text>();
-        //            text.text = GetRadialAbilityName(RadialAbilityMap[i + 1]);
-        //            text.alignment = TextAnchor.MiddleCenter;
-        //            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        //            text.color = Color.black;
-        //            text.rectTransform.sizeDelta = new Vector2(60, 60);
-
-        //            int index = i;
-
-        //            radialButtons.Add(buttonObj);
-        //        }
-        //    }
-        //    else
-        //    {
-        //        radialMenuInstance.SetActive(true);
-        //    }
-        //    RadialMenuIsOpen = true;
-        //    Cursor.lockState = CursorLockMode.None;
-        //    Cursor.visible = true;
-        //}
 
         public class RadialMenu : MonoBehaviour
         {

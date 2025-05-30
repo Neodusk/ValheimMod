@@ -148,6 +148,7 @@ namespace valheimmod
         public class ModInput
         {
             public static ConfigEntry<KeyCode> SpecialRadialKeyConfig;
+            public static ConfigEntry<InputManager.GamepadButton> SpecialRadialGamepadCloseConfig;
             public static ConfigEntry<InputManager.GamepadButton> SpecialRadialGamepadConfig;
             public static ButtonConfig SpecialRadialButton { get; private set; }
 
@@ -155,16 +156,24 @@ namespace valheimmod
             {
                 SpecialRadialKeyConfig = config.Bind(
                    "Controls",
-                   "SpecialJumpKey",
+                   "SpecialRadialKey",
                    KeyCode.H,
                    new ConfigDescription("Key to activate special jump")
                 );
                 SpecialRadialGamepadConfig = config.Bind(
                    "Controls",
-                   "SpecialJumpKey Gamepad",
+                   "SpecialRadialKey Gamepad",
                    InputManager.GamepadButton.DPadUp,
                    new ConfigDescription("Gamepad button to activate special jump")
                 );
+
+                SpecialRadialGamepadCloseConfig = config.Bind(
+                   "Controls",
+                   "SpecialRadialKeyClose",
+                   InputManager.GamepadButton.ButtonEast,
+                   new ConfigDescription("Gamepad button to close the radial menu")
+                ); 
+                
 
                 // Register the key with Jotunn's InputManager
                 SpecialRadialButton = new ButtonConfig
@@ -176,6 +185,7 @@ namespace valheimmod
                     HintToken = "$special_jump",
                     BlockOtherInputs = true,
                 };
+
                 InputManager.Instance.AddButton("com.jotunn.valheimmod", SpecialRadialButton);
             }
             public static bool IsSpecialRadialButtonHeld()
@@ -211,7 +221,8 @@ namespace valheimmod
             public static void CallSpecialJump()
             {
                 // if the player presses the jump button when they have the jump pending buff, give super jump effect
-                if ((ZInput.GetButton("Jump") && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
+
+                if (((ZInput.GetButton("Jump") || ZInput.GetButton("JoyJump")) && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
                 {
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
                     Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
@@ -344,7 +355,32 @@ namespace valheimmod
                 
                 if (RadialMenuIsOpen)
                 {
-                    if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("Block")))
+                    foreach (var name in ZInput.instance.m_buttons.Keys)
+                    {
+                        if (ZInput.GetButtonDown(name))
+                            Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
+                    }
+
+                    int prevIndex = gamepadSelectedIndex;
+
+                    if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
+                    else if (ZInput.GetButtonDown("JoyRStickRight")) gamepadSelectedIndex = 1; // East
+                    else if (ZInput.GetButtonDown("JoyRStickDown")) gamepadSelectedIndex = 2;  // South
+                    else if (ZInput.GetButtonDown("JoyRStickLeft")) gamepadSelectedIndex = 3;  // West
+
+                    if (gamepadSelectedIndex != prevIndex)
+                        UpdateGamepadHighlight();
+
+                    // Confirm selection with JoyUse
+                    if (ZInput.GetButtonDown("JoyUse"))
+                    {
+                        if (gamepadSelectedIndex >= 0 && gamepadSelectedIndex < radialButtons.Count)
+                        {
+                            radialButtons[gamepadSelectedIndex].GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                        }
+                    }
+
+                    if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
                     {
                         Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
                         CloseRadialMenu();
