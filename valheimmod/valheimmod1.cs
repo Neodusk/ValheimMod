@@ -34,7 +34,10 @@ namespace valheimmod
         public static int DefaultJumpForce = 8; // Set the default jump force
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
-        public static Texture2D TestTex;
+        public static Texture2D SpecialJumpTexture;
+        public static Texture2D RadialTexture;
+        public static Sprite RadialSprite;
+        public static Sprite[] RadialSegmentSprites;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -47,7 +50,7 @@ namespace valheimmod
             effect.name = "SpecialJumpEffect";
             effect.m_name = "$special_jumpeffect";
             effect.m_tooltip = "$special_jumpeffect_tooltip";
-            effect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, TestTex.width, TestTex.height), new Vector2(0.5f, 0.5f));
+            effect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
             effect.m_startMessageType = MessageHud.MessageType.Center;
             //effect.m_startMessage = "$special_jumpeffect_start";
             effect.m_stopMessageType = MessageHud.MessageType.Center;
@@ -58,7 +61,7 @@ namespace valheimmod
             pendeffect.name = "PendingSpecialJumpEffect";
             pendeffect.m_name = "$pending_special_jumpeffect";
             pendeffect.m_tooltip = "$special_jumpeffect_tooltip";
-            pendeffect.m_icon = Sprite.Create(TestTex, new Rect(0, 0, TestTex.width, TestTex.height), new Vector2(0.5f, 0.5f));
+            pendeffect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
             pendeffect.m_startMessageType = MessageHud.MessageType.Center;
             pendeffect.m_startMessage = "$pending_special_jumpeffect_start";
             pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
@@ -204,6 +207,7 @@ namespace valheimmod
             }
 
 
+
             public static void CallSpecialJump()
             {
                 // if the player presses the jump button when they have the jump pending buff, give super jump effect
@@ -223,6 +227,23 @@ namespace valheimmod
 
                 }
             }
+
+            //public static bool CallPendingTreeCut()
+            //{
+            //    RadialAbility radial_ability = GetRadialAbility();
+            //    string ability_name = radial_ability.ToString();
+            //    if (ability_name == RadialAbility.SuperJump.ToString())
+            //    {
+            //        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(TreeCutPendingSpecialEffect.StatusEffect.m_nameHash))
+            //        {
+            //            Jotunn.Logger.LogInfo("Adding TreeCutPendingSpecialEffect status effect");
+            //            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.TreeCutPendingSpecialEffect.StatusEffect, true);
+            //        }
+            //        return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
+            //    }
+            //    return false;
+            //}
+
             public static void CallPendingAbilities()
             {
                 CallPendingSpecialJump();
@@ -248,8 +269,33 @@ namespace valheimmod
             string modPath = Path.GetDirectoryName(Info.Location);
 
             // Load texture from filesystem
-            TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
-            Sprite TestSprite = Sprite.Create(TestTex, new Rect(0f, 0f, TestTex.width, TestTex.height), Vector2.zero);
+            SpecialJumpTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
+            RadialTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/radial.png"));
+            if (SpecialJumpTexture == null)
+            {
+                Jotunn.Logger.LogError("Failed to load SpecialJumpTexture! Check if the PNG is valid and not corrupted.");
+            }
+            RadialTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/radial.png"));
+            RadialSegmentSprites = new Sprite[4];
+            string[] segmentFiles = { "radial_n.png", "radial_e.png", "radial_s.png", "radial_w.png"};
+            for (int i = 0; i < 4; i++)
+            {
+                var tex = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentFiles[i]));
+                RadialSegmentSprites[i] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            }
+            if (RadialTexture == null)
+            {
+                Jotunn.Logger.LogError("Failed to load RadialTexture! Check if the PNG is valid and not corrupted.");
+            } else
+            {
+                RadialSprite = Sprite.Create(
+                   RadialTexture,
+                   new Rect(0, 0, RadialTexture.width, RadialTexture.height),
+                   new Vector2(0.5f, 0.5f)
+               );
+            }
+                //TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
+                Sprite TestSprite = Sprite.Create(SpecialJumpTexture, new Rect(0f, 0f, SpecialJumpTexture.width, SpecialJumpTexture.height), Vector2.zero);
 
             // Load asset bundle from filesystem
             //TestAssets = AssetUtils.LoadAssetBundle(Path.Combine(modPath, "Assets/jotunnlibtest"));
@@ -290,19 +336,6 @@ namespace valheimmod
             // https://valheim-modding.github.io/Jotunn/tutorials/overview.html
         }
 
-        private static readonly string[] ZInputButtonNames = new[]
-        {
-            "Attack", "SecondaryAttack", "Block", "Use", "Jump", "Crouch", "Run", "AltPlace",
-            "TakeAll", "Forward", "Backward", "Left", "Right", "Map", "Inventory",
-            "Hotbar1", "Hotbar2", "Hotbar3", "Hotbar4", "Hotbar5", "Hotbar6", "Hotbar7", "Hotbar8",
-            "Sit", "AutoRun", "HideHud",
-            "GamepadA", "GamepadB", "GamepadX", "GamepadY",
-            "GamepadLB", "GamepadRB", "GamepadLT", "GamepadRT",
-            "GamepadLStick", "GamepadRStick",
-            "GamepadDpadUp", "GamepadDpadDown", "GamepadDpadLeft", "GamepadDpadRight",
-            "GamepadStart", "GamepadBack"
-            // Add your custom button names here if needed
-        };
         private void Update()
         {
             if (ZInput.instance != null)
@@ -311,28 +344,10 @@ namespace valheimmod
                 
                 if (RadialMenuIsOpen)
                 {
-                    UpdateRadialHighlight();
-                    foreach (var btn in ZInputButtonNames)
-                    {
-                        if (ZInput.GetButtonDown(btn))
-                        {
-                            Jotunn.Logger.LogInfo($"ZInput button pressed: {btn}");
-                        }
-                    }
-                    // TODO: the controller interactions with the radial menu suck / don't work right
-                    if ((Input.GetMouseButtonDown(0) || (ZInput.GetButton("Use")) && (currentHighlightedIndex >= 0)))
-                    { 
-                        SetRadialAbility(currentHighlightedIndex + 1);
-                        Jotunn.Logger.LogInfo($"Radial ability set to: {RadialAbilityMap[currentHighlightedIndex + 1]}");
-                        ModInput.CallPendingAbilities();
-                        CloseRadialMenu();
-                    }
-
                     if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("Block")))
                     {
                         Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
                         CloseRadialMenu();
-                        //return;
                     }
                 }
                 if (!RadialMenuIsOpen)
