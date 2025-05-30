@@ -19,7 +19,7 @@ namespace valheimmod
         public static bool RadialMenuIsOpen = false;
         public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
-        public static int gamepadSelectedIndex = 0;
+        public static int gamepadSelectedIndex = -1;
         private static void SetRadialAbility(int index)
         {
             Debug.Log($"Radial menu option {index} clicked!");
@@ -189,7 +189,8 @@ namespace valheimmod
                         if (text != null) text.color = Color.white;
                         currentHighlightedIndex = -1;
                     });
-                    eventTrigger.triggers.Add(entryExit); gamepadSelectedIndex = 0;
+                    eventTrigger.triggers.Add(entryExit);
+                    gamepadSelectedIndex = -1;
                     UpdateGamepadHighlight();
 
                     radialButtons.Add(buttonObj);
@@ -202,7 +203,7 @@ namespace valheimmod
             RadialMenuIsOpen = true;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            gamepadSelectedIndex = 0;
+            gamepadSelectedIndex = -1;
             UpdateGamepadHighlight();
         }
 

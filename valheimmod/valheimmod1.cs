@@ -13,6 +13,7 @@ using Jotunn.Utils;
 using Mono.Security.Cryptography;
 using MonoMod.Utils;
 using UnityEngine;
+using UnityEngine.UI;
 using valheimmod;
 using static valheimmod.valheimmod;
 
@@ -361,6 +362,48 @@ namespace valheimmod
                             Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
                     }
 
+                    //start
+                    Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
+                    Vector2 mousePos = Input.mousePosition;
+                    Vector2 dir = mousePos - menuCenter;
+                    float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                    if (angle < 0) angle += 360f;
+
+                    // For 4 segments: 0=East, 1=North, 2=West, 3=South (adjust as needed)
+                    int hoveredIndex = -1;
+                    if (dir.magnitude > 30f) // Only highlight if mouse is away from center
+                    {
+                        if (angle >= 45f && angle < 135f) hoveredIndex = 0;      // North
+                        else if (angle >= 135f && angle < 225f) hoveredIndex = 3; // West
+                        else if (angle >= 225f && angle < 315f) hoveredIndex = 2; // South
+                        else hoveredIndex = 1;                                   // East
+                    }
+
+                    // Highlight logic
+                    for (int i = 0; i < radialButtons.Count; i++)
+                    {
+                        var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                        if (text != null)
+                        {
+                            if (i == hoveredIndex)
+                                text.color = Color.yellow;
+                            else if (i == gamepadSelectedIndex)
+                                text.color = Color.yellow;
+                            else
+                                text.color = Color.white;
+                        }
+                    }
+
+                    // Click to select
+                    if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
+                    {
+                        radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
+                    }
+
+
+                    //end
+
+
                     int prevIndex = gamepadSelectedIndex;
 
                     if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
@@ -422,7 +465,7 @@ namespace valheimmod
                     Jotunn.Logger.LogInfo("Jumped with default jump key");
                     __instance.m_jumpForce = DefaultJumpForce; // Default jump force
                 }
-                valheimmod.SpecialJumpTriggered = false; // Reset the flag
+                //valheimmod.SpecialJumpTriggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
             }
             bool s2;
             s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
@@ -481,7 +524,7 @@ namespace valheimmod
     {
         static void Prefix(SEMan __instance, float baseDamage, ref float damage)
         {
-            // Get the Character this SEMan belongs to
+            // Get the Character this SEMan belongs toSpecialJumpTriggered
             Character character = __instance.m_character;
             bool s2;
             s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
@@ -491,7 +534,10 @@ namespace valheimmod
             {
                 damage = 0f;
                 Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
+                valheimmod.SpecialJumpTriggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
+
             }
+            // TODO: Player will still take fall damage if they spam the jump button even in the air 
         }
     }
 
