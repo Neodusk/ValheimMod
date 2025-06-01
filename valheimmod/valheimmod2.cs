@@ -228,85 +228,70 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
-        //if (RadialMenuIsOpen)
-        //    {
-                foreach (var name in ZInput.instance.m_buttons.Keys)
+            foreach (var name in ZInput.instance.m_buttons.Keys)
+            {
+                if (ZInput.GetButtonDown(name))
+                    Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
+            }
+
+            //start
+            Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
+            Vector2 mousePos = Input.mousePosition;
+            Vector2 dir = mousePos - menuCenter;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            if (angle < 0) angle += 360f;
+
+            // For 4 segments: 0=East, 1=North, 2=West, 3=South (adjust as needed)
+            int hoveredIndex = -1;
+            if (dir.magnitude > 30f) // Only highlight if mouse is away from center
+            {
+                if (angle >= 45f && angle < 135f) hoveredIndex = 0;      // North
+                else if (angle >= 135f && angle < 225f) hoveredIndex = 3; // West
+                else if (angle >= 225f && angle < 315f) hoveredIndex = 2; // South
+                else hoveredIndex = 1;                                   // East
+            }
+
+            // Highlight logic
+            for (int i = 0; i < radialButtons.Count; i++)
+            {
+                var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
+                text.color = highlighted ? Color.yellow : Color.white;
+                if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
+                    radialButtonHighlights[i].SetActive(highlighted);
+            }
+
+            // Click to select
+            if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
+            {
+                radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
+            }
+
+            int prevIndex = gamepadSelectedIndex;
+
+            if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
+            else if (ZInput.GetButtonDown("JoyRStickRight")) gamepadSelectedIndex = 1; // East
+            else if (ZInput.GetButtonDown("JoyRStickDown")) gamepadSelectedIndex = 2;  // South
+            else if (ZInput.GetButtonDown("JoyRStickLeft")) gamepadSelectedIndex = 3;  // West
+
+            if (gamepadSelectedIndex != prevIndex)
+                UpdateGamepadHighlight();
+
+            // Confirm selection with JoyUse
+            if (ZInput.GetButtonDown("JoyUse"))
+            {
+                if (gamepadSelectedIndex >= 0 && gamepadSelectedIndex < radialButtons.Count)
                 {
-                    if (ZInput.GetButtonDown(name))
-                        Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
+                    radialButtons[gamepadSelectedIndex].GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                 }
+            }
 
-                //start
-                Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
-                Vector2 mousePos = Input.mousePosition;
-                Vector2 dir = mousePos - menuCenter;
-                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                if (angle < 0) angle += 360f;
-
-                // For 4 segments: 0=East, 1=North, 2=West, 3=South (adjust as needed)
-                int hoveredIndex = -1;
-                if (dir.magnitude > 30f) // Only highlight if mouse is away from center
-                {
-                    if (angle >= 45f && angle < 135f) hoveredIndex = 0;      // North
-                    else if (angle >= 135f && angle < 225f) hoveredIndex = 3; // West
-                    else if (angle >= 225f && angle < 315f) hoveredIndex = 2; // South
-                    else hoveredIndex = 1;                                   // East
-                }
-
-                // Highlight logic
-                for (int i = 0; i < radialButtons.Count; i++)
-                {
-                    var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
-                    bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
-                    text.color = highlighted ? Color.yellow : Color.white;
-                    if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
-                        radialButtonHighlights[i].SetActive(highlighted);
-                }
-
-                // Click to select
-                if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
-                {
-                    radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
-                }
-
-
-
-
-
-
-                //end
-
-
-                int prevIndex = gamepadSelectedIndex;
-
-                if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
-                else if (ZInput.GetButtonDown("JoyRStickRight")) gamepadSelectedIndex = 1; // East
-                else if (ZInput.GetButtonDown("JoyRStickDown")) gamepadSelectedIndex = 2;  // South
-                else if (ZInput.GetButtonDown("JoyRStickLeft")) gamepadSelectedIndex = 3;  // West
-
-                if (gamepadSelectedIndex != prevIndex)
-                    UpdateGamepadHighlight();
-
-                // Confirm selection with JoyUse
-                if (ZInput.GetButtonDown("JoyUse"))
-                {
-                    if (gamepadSelectedIndex >= 0 && gamepadSelectedIndex < radialButtons.Count)
-                    {
-                        radialButtons[gamepadSelectedIndex].GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-                    }
-                }
-
-                // handle closing the radial menu with options outside the radial menu button
-                if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
-                {
-                    Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
-                    CloseRadialMenu();
-                }
-            //}
-            //if (!RadialMenuIsOpen)
-            //{
-            //    ModInput.CallSpecialAbilities();
-            //}
+            // handle closing the radial menu with options outside the radial menu button
+            if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
+            {
+                Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
+                CloseRadialMenu();
+            }
         }
 
         public class RadialMenu : MonoBehaviour
@@ -337,8 +322,6 @@ namespace valheimmod
             void OnSegmentClicked(int index)
             {
                 Debug.Log($"Radial menu option {index + 1} clicked!");
-                // todo maybe we can set pending spells here instead
-                // Add your action here
             }
         }
     }
