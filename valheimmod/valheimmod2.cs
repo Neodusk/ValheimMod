@@ -285,35 +285,5 @@ namespace valheimmod
                 CloseRadialMenu();
             }
         }
-
-        public class RadialMenu : MonoBehaviour
-        {
-            public int segmentCount = 6;
-            public float radius = 100f;
-
-            void Start()
-            {
-                CreateRadialMenu();
-            }
-
-            void CreateRadialMenu()
-            {
-                for (int i = 0; i < segmentCount; i++)
-                {
-                    float angle = i * Mathf.PI * 2f / segmentCount;
-                    Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                    GameObject buttonObj = Instantiate(buttonPrefab, transform);
-                    buttonObj.GetComponent<RectTransform>().anchoredPosition = pos;
-                    buttonObj.GetComponentInChildren<Text>().text = $"Option {i + 1}";
-                    int index = i;
-                    buttonObj.GetComponent<Button>().onClick.AddListener(() => OnSegmentClicked(index));
-                }
-            }
-
-            void OnSegmentClicked(int index)
-            {
-                Debug.Log($"Radial menu option {index + 1} clicked!");
-            }
-        }
     }
 }
