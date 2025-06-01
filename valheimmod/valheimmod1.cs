@@ -353,7 +353,6 @@ namespace valheimmod
                 //        Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
                 //}
 
-                Player.m_localPlayer.m_guardianPowerCooldown = 0f; // Reset guardian power cooldown to allow immediate use
                 // todo check that JoyGP and SpecialRadialButton are the same button before doign this
                 if (ZInput.GetButtonDown("JoyGP"))
                 {
