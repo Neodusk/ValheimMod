@@ -1,0 +1,7 @@
+{
+  "special_jumpeffect": "Super jump",
+  "pending_special_jumpeffect": "Super jump Active!",
+  "special_jumpeffect_tooltip": "This is a tooltip",
+  "$special_jumpeffect_start": "You feel lighter",
+  "special_jumpeffect_stop": "You feel heavier"
+}
