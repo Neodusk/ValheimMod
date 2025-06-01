@@ -39,6 +39,7 @@ namespace valheimmod
         public static Texture2D RadialTexture;
         public static Sprite RadialSprite;
         public static Sprite[] RadialSegmentSprites;
+        public static Sprite[] RadialSegmentHighlightSprites;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -289,11 +290,15 @@ namespace valheimmod
             }
             RadialTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/radial.png"));
             RadialSegmentSprites = new Sprite[4];
+            RadialSegmentHighlightSprites = new Sprite[4];
             string[] segmentFiles = { "radial_n.png", "radial_e.png", "radial_s.png", "radial_w.png"};
-            for (int i = 0; i < 4; i++)
+            string[] segmentHighlightFiles = { "rh_n.png", "rh_e.png", "rh_s.png", "rh_w.png" };
+            for (int i = 0; i < segmentFiles.Length; i++)
             {
                 var tex = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentFiles[i]));
                 RadialSegmentSprites[i] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                var texHighlight = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentHighlightFiles[i]));
+                RadialSegmentHighlightSprites[i] = Sprite.Create(texHighlight, new Rect(0, 0, texHighlight.width, texHighlight.height), new Vector2(0.5f, 0.5f));
             }
             if (RadialTexture == null)
             {
@@ -353,86 +358,9 @@ namespace valheimmod
             if (ZInput.instance != null)
             {
                 ModInput.IsSpecialRadialButtonHeld();
-                
-                if (RadialMenuIsOpen)
-                {
-                    foreach (var name in ZInput.instance.m_buttons.Keys)
-                    {
-                        if (ZInput.GetButtonDown(name))
-                            Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
-                    }
-
-                    //start
-                    Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
-                    Vector2 mousePos = Input.mousePosition;
-                    Vector2 dir = mousePos - menuCenter;
-                    float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                    if (angle < 0) angle += 360f;
-
-                    // For 4 segments: 0=East, 1=North, 2=West, 3=South (adjust as needed)
-                    int hoveredIndex = -1;
-                    if (dir.magnitude > 30f) // Only highlight if mouse is away from center
-                    {
-                        if (angle >= 45f && angle < 135f) hoveredIndex = 0;      // North
-                        else if (angle >= 135f && angle < 225f) hoveredIndex = 3; // West
-                        else if (angle >= 225f && angle < 315f) hoveredIndex = 2; // South
-                        else hoveredIndex = 1;                                   // East
-                    }
-
-                    // Highlight logic
-                    for (int i = 0; i < radialButtons.Count; i++)
-                    {
-                        var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
-                        if (text != null)
-                        {
-                            if (i == hoveredIndex)
-                                text.color = Color.yellow;
-                            else if (i == gamepadSelectedIndex)
-                                text.color = Color.yellow;
-                            else
-                                text.color = Color.white;
-                        }
-                    }
-
-                    // Click to select
-                    if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
-                    {
-                        radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
-                    }
 
 
-                    //end
-
-
-                    int prevIndex = gamepadSelectedIndex;
-
-                    if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
-                    else if (ZInput.GetButtonDown("JoyRStickRight")) gamepadSelectedIndex = 1; // East
-                    else if (ZInput.GetButtonDown("JoyRStickDown")) gamepadSelectedIndex = 2;  // South
-                    else if (ZInput.GetButtonDown("JoyRStickLeft")) gamepadSelectedIndex = 3;  // West
-
-                    if (gamepadSelectedIndex != prevIndex)
-                        UpdateGamepadHighlight();
-
-                    // Confirm selection with JoyUse
-                    if (ZInput.GetButtonDown("JoyUse"))
-                    {
-                        if (gamepadSelectedIndex >= 0 && gamepadSelectedIndex < radialButtons.Count)
-                        {
-                            radialButtons[gamepadSelectedIndex].GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-                        }
-                    }
-
-                    if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
-                    {
-                        Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
-                        CloseRadialMenu();
-                    }
-                }
-                if (!RadialMenuIsOpen)
-                {
-                    ModInput.CallSpecialAbilities();
-                }
+                HandleRadialMenu();
             }
         }
         

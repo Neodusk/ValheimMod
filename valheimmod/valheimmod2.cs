@@ -20,6 +20,7 @@ namespace valheimmod
         public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
         public static int gamepadSelectedIndex = -1;
+        private static List<GameObject> radialButtonHighlights = new List<GameObject>();
         private static void SetRadialAbility(int index)
         {
             Debug.Log($"Radial menu option {index} clicked!");
@@ -30,16 +31,18 @@ namespace valheimmod
         {
             None = 0,
             SuperJump,
-            None2,
-            None3
+            TreeCut,
+            MineExplode,
+            TeleportHome,
         }
 
         private static readonly RadialAbility[] RadialAbilityMap = new[]
         {
             RadialAbility.None,      // 0 (not used)
             RadialAbility.SuperJump, // 1
-            RadialAbility.None2,  // 2
-            RadialAbility.None3       // 3
+            RadialAbility.TreeCut,  // 2
+            RadialAbility.MineExplode,       // 3
+            RadialAbility.TeleportHome       // 3
         };
 
         private static string GetRadialAbilityName(RadialAbility ability)
@@ -47,8 +50,9 @@ namespace valheimmod
             return ability switch
             {
                 RadialAbility.SuperJump => "Super Jump",
-                RadialAbility.None2 => "None 2",
-                RadialAbility.None3 => "None 3",
+                RadialAbility.TreeCut => "Spectral Axe",
+                RadialAbility.MineExplode => "Mine Explosion",
+                RadialAbility.TeleportHome => "Hearth",
                 _ => "None"
             };
         }
@@ -122,6 +126,7 @@ namespace valheimmod
                 radialMenuInstance = new GameObject("RadialMenu");
                 radialMenuInstance.transform.SetParent(canvasObj.transform, false);
 
+
                 int segmentCount = 4;
                 float buttonRadius = 70f; // Set this to match your asset's segment center distance
                 float[] angles = { 90f, 0f, 270f, 180f }; // Adjust if your asset is rotated
@@ -130,16 +135,15 @@ namespace valheimmod
                 {
                     float angleRad = angles[i] * Mathf.Deg2Rad;
                     Vector2 pos = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * buttonRadius;
-                    float textRadius = 70f;
+                    float textRadius = 160f;
                     Vector2 textPos = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * textRadius;
 
                     GameObject buttonObj = new GameObject($"Button_{i + 1}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
                     buttonObj.transform.SetParent(radialMenuInstance.transform, false);
                     var rect = buttonObj.GetComponent<RectTransform>();
                     rect.anchoredPosition = Vector2.zero;
-                    rect.sizeDelta = new Vector2(300, 300); // Use your full radial size
+                    rect.sizeDelta = new Vector2(600, 600); // Use your full radial size
 
-                    // Optional: make the button background transparent
                     var img = buttonObj.GetComponent<Image>();
                     img.sprite = valheimmod.RadialSegmentSprites[i];
                     img.color = new Color(1f, 1f, 1f, 0f);
@@ -154,9 +158,23 @@ namespace valheimmod
                     text.alignment = TextAnchor.MiddleCenter;
                     text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                     text.fontStyle = FontStyle.Bold;
-                    text.color = Color.white;
-                    text.rectTransform.sizeDelta = new Vector2(60, 60);
+                    text.color = Color.red;
+                    text.rectTransform.sizeDelta = new Vector2(180, 90);
                     text.rectTransform.anchoredPosition = textPos; // <-- Offset text outward
+
+                    GameObject highlightObj = new GameObject("Highlight", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                    highlightObj.transform.SetParent(buttonObj.transform, false);
+                    highlightObj.transform.SetAsFirstSibling(); // Ensure it's behind
+                    var highlightRect = highlightObj.GetComponent<RectTransform>();
+                    highlightRect.anchorMin = Vector2.zero;
+                    highlightRect.anchorMax = Vector2.one;
+                    highlightRect.offsetMin = Vector2.zero;
+                    highlightRect.offsetMax = Vector2.zero;
+                    var highlightImg = highlightObj.GetComponent<Image>();
+                    highlightImg.sprite = valheimmod.RadialSegmentHighlightSprites[i];
+                    highlightImg.color = new Color(1f, 1f, 1f, 0.8f); // Adjust alpha as needed
+                    highlightObj.SetActive(false); // Hide by default
+
 
                     int index = i + 1;
                     var button = buttonObj.GetComponent<Button>();
@@ -186,7 +204,7 @@ namespace valheimmod
                     entryExit.callback.AddListener((eventData) =>
                     {
                         var text = buttonObj.GetComponentInChildren<Text>();
-                        if (text != null) text.color = Color.white;
+                        if (text != null) text.color = Color.red;
                         currentHighlightedIndex = -1;
                     });
                     eventTrigger.triggers.Add(entryExit);
@@ -194,6 +212,7 @@ namespace valheimmod
                     UpdateGamepadHighlight();
 
                     radialButtons.Add(buttonObj);
+                    radialButtonHighlights.Add(highlightObj);
                 }
             }
             else
@@ -205,6 +224,88 @@ namespace valheimmod
             Cursor.visible = true;
             gamepadSelectedIndex = -1;
             UpdateGamepadHighlight();
+        }
+
+        public static void HandleRadialMenu()
+        {
+        if (RadialMenuIsOpen)
+            {
+                foreach (var name in ZInput.instance.m_buttons.Keys)
+                {
+                    if (ZInput.GetButtonDown(name))
+                        Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
+                }
+
+                //start
+                Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
+                Vector2 mousePos = Input.mousePosition;
+                Vector2 dir = mousePos - menuCenter;
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                if (angle < 0) angle += 360f;
+
+                // For 4 segments: 0=East, 1=North, 2=West, 3=South (adjust as needed)
+                int hoveredIndex = -1;
+                if (dir.magnitude > 30f) // Only highlight if mouse is away from center
+                {
+                    if (angle >= 45f && angle < 135f) hoveredIndex = 0;      // North
+                    else if (angle >= 135f && angle < 225f) hoveredIndex = 3; // West
+                    else if (angle >= 225f && angle < 315f) hoveredIndex = 2; // South
+                    else hoveredIndex = 1;                                   // East
+                }
+
+                // Highlight logic
+                for (int i = 0; i < radialButtons.Count; i++)
+                {
+                    var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                    bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
+                    text.color = highlighted ? Color.yellow : Color.white;
+                    if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
+                        radialButtonHighlights[i].SetActive(highlighted);
+                }
+
+                // Click to select
+                if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
+                {
+                    radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
+                }
+
+
+
+
+
+
+                //end
+
+
+                int prevIndex = gamepadSelectedIndex;
+
+                if (ZInput.GetButtonDown("JoyRStickUp")) gamepadSelectedIndex = 0;    // North
+                else if (ZInput.GetButtonDown("JoyRStickRight")) gamepadSelectedIndex = 1; // East
+                else if (ZInput.GetButtonDown("JoyRStickDown")) gamepadSelectedIndex = 2;  // South
+                else if (ZInput.GetButtonDown("JoyRStickLeft")) gamepadSelectedIndex = 3;  // West
+
+                if (gamepadSelectedIndex != prevIndex)
+                    UpdateGamepadHighlight();
+
+                // Confirm selection with JoyUse
+                if (ZInput.GetButtonDown("JoyUse"))
+                {
+                    if (gamepadSelectedIndex >= 0 && gamepadSelectedIndex < radialButtons.Count)
+                    {
+                        radialButtons[gamepadSelectedIndex].GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                    }
+                }
+
+                if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
+                {
+                    Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
+                    CloseRadialMenu();
+                }
+            }
+            if (!RadialMenuIsOpen)
+            {
+                ModInput.CallSpecialAbilities();
+            }
         }
 
         public class RadialMenu : MonoBehaviour
