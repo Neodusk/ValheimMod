@@ -89,6 +89,20 @@
     <Copy SourceFiles="$(VALHEIM_MANAGED)/SoftReferenceableAssets.dll" DestinationFolder="$(UNITY_FOLDER)/Assets/Assemblies" />
   </Target>
 
+  <PropertyGroup>
+	<VALHEIM_PLUGIN_ASSETS>$(VALHEIM_INSTALL)\BepInEx\plugins\valheimmod\Assets</VALHEIM_PLUGIN_ASSETS>
+  </PropertyGroup>
+  <Target Name="CopyAssetsToValheimPlugin" AfterTargets="Build">
+	<Message Text="Copying Assets folder to Valheim plugin directory..." Importance="high" />
+	<RemoveDir Directories="$(VALHEIM_PLUGIN_ASSETS)" Condition="Exists('$(VALHEIM_PLUGIN_ASSETS)')" />
+	<MakeDir Directories="$(VALHEIM_PLUGIN_ASSETS)" />
+	<Copy SourceFiles="@(AssetFiles)" DestinationFolder="$(VALHEIM_PLUGIN_ASSETS)\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+	<ItemGroup>
+		<AssetFiles Include="Assets\**\*.*" />
+	</ItemGroup>
+
   <Target Name="JotunnPostBuildTask" AfterTargets="Build">
     <CallTarget Targets="CopyToUnity" Condition="Exists('$(UNITY_FOLDER)')" />
   </Target>
