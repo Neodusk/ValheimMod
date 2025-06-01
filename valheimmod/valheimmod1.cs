@@ -195,7 +195,7 @@ namespace valheimmod
                 if (ZInput.GetButton(ModInput.SpecialRadialButton.Name) && !RadialMenuIsOpen)
                 {
                     ShowRadialMenu();
-                }
+                } 
                 return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
             }
 
@@ -357,10 +357,27 @@ namespace valheimmod
         {
             if (ZInput.instance != null)
             {
-                ModInput.IsSpecialRadialButtonHeld();
+                //ModInput.IsSpecialRadialButtonHeld();
+                if (ZInput.GetButtonDown(ModInput.SpecialRadialButton.Name)) { 
+                    if (!RadialMenuIsOpen)
+                    {
+                        ShowRadialMenu();
+                    }
+                    else
+                    {
+                        // other keys to close are handled in the HandleRadialMenu method
+                        CloseRadialMenu();
+                    }
+                }
+                if (RadialMenuIsOpen)
+                {
+                    HandleRadialMenu();
+                }
+                if (!RadialMenuIsOpen)
+                {
+                    ModInput.CallSpecialAbilities();
+                }
 
-
-                HandleRadialMenu();
             }
         }
         

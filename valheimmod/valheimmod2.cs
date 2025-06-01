@@ -228,8 +228,8 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
-        if (RadialMenuIsOpen)
-            {
+        //if (RadialMenuIsOpen)
+        //    {
                 foreach (var name in ZInput.instance.m_buttons.Keys)
                 {
                     if (ZInput.GetButtonDown(name))
@@ -296,16 +296,17 @@ namespace valheimmod
                     }
                 }
 
+                // handle closing the radial menu with options outside the radial menu button
                 if ((Input.GetMouseButtonDown(1) || ZInput.GetButtonDown("JoyJump")))
                 {
                     Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
                     CloseRadialMenu();
                 }
-            }
-            if (!RadialMenuIsOpen)
-            {
-                ModInput.CallSpecialAbilities();
-            }
+            //}
+            //if (!RadialMenuIsOpen)
+            //{
+            //    ModInput.CallSpecialAbilities();
+            //}
         }
 
         public class RadialMenu : MonoBehaviour
