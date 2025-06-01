@@ -17,7 +17,6 @@ namespace valheimmod
     {
         public static GameObject radialMenuInstance;
         public static bool RadialMenuIsOpen = false;
-        public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
         public static int gamepadSelectedIndex = -1;
         private static List<GameObject> radialButtonHighlights = new List<GameObject>();
@@ -228,12 +227,6 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
-            foreach (var name in ZInput.instance.m_buttons.Keys)
-            {
-                if (ZInput.GetButtonDown(name))
-                    Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
-            }
-
             Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
             Vector2 mousePos = Input.mousePosition;
             Vector2 dir = mousePos - menuCenter;
@@ -297,7 +290,6 @@ namespace valheimmod
         {
             public int segmentCount = 6;
             public float radius = 100f;
-            public GameObject buttonPrefab; // Assign a Unity UI Button prefab
 
             void Start()
             {

@@ -36,10 +36,13 @@ namespace valheimmod
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
         public static Texture2D SpecialJumpTexture;
-        public static Texture2D RadialTexture;
-        public static Sprite RadialSprite;
         public static Sprite[] RadialSegmentSprites;
         public static Sprite[] RadialSegmentHighlightSprites;
+        public static bool allowForsakenPower = false;
+        private float dpadDownPressTime = -1f;
+        private bool dpadDownHeld = false;
+        private bool forsakenPowerTriggered = false;
+        private const float holdThreshold = 0.35f; // seconds
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -165,7 +168,7 @@ namespace valheimmod
                 SpecialRadialGamepadConfig = config.Bind(
                    "Controls",
                    "SpecialRadialKey Gamepad",
-                   InputManager.GamepadButton.DPadUp,
+                   InputManager.GamepadButton.DPadDown,
                    new ConfigDescription("Gamepad button to activate special jump")
                 );
 
@@ -283,12 +286,10 @@ namespace valheimmod
 
             // Load texture from filesystem
             SpecialJumpTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
-            RadialTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/radial.png"));
             if (SpecialJumpTexture == null)
             {
                 Jotunn.Logger.LogError("Failed to load SpecialJumpTexture! Check if the PNG is valid and not corrupted.");
             }
-            RadialTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/radial.png"));
             RadialSegmentSprites = new Sprite[4];
             RadialSegmentHighlightSprites = new Sprite[4];
             string[] segmentFiles = { "radial_n.png", "radial_e.png", "radial_s.png", "radial_w.png"};
@@ -299,17 +300,6 @@ namespace valheimmod
                 RadialSegmentSprites[i] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
                 var texHighlight = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentHighlightFiles[i]));
                 RadialSegmentHighlightSprites[i] = Sprite.Create(texHighlight, new Rect(0, 0, texHighlight.width, texHighlight.height), new Vector2(0.5f, 0.5f));
-            }
-            if (RadialTexture == null)
-            {
-                Jotunn.Logger.LogError("Failed to load RadialTexture! Check if the PNG is valid and not corrupted.");
-            } else
-            {
-                RadialSprite = Sprite.Create(
-                   RadialTexture,
-                   new Rect(0, 0, RadialTexture.width, RadialTexture.height),
-                   new Vector2(0.5f, 0.5f)
-               );
             }
                 //TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
                 Sprite TestSprite = Sprite.Create(SpecialJumpTexture, new Rect(0f, 0f, SpecialJumpTexture.width, SpecialJumpTexture.height), Vector2.zero);
@@ -357,8 +347,53 @@ namespace valheimmod
         {
             if (ZInput.instance != null)
             {
-                //ModInput.IsSpecialRadialButtonHeld();
-                if (ZInput.GetButtonDown(ModInput.SpecialRadialButton.Name)) { 
+                //foreach (var name in ZInput.instance.m_buttons.Keys)
+                //{
+                //    if (ZInput.GetButtonDown(name))
+                //        Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
+                //}
+
+                Player.m_localPlayer.m_guardianPowerCooldown = 0f; // Reset guardian power cooldown to allow immediate use
+                // todo check that JoyGP and SpecialRadialButton are the same button before doign this
+                if (ZInput.GetButtonDown("JoyGP"))
+                {
+                    dpadDownPressTime = Time.time;
+                    dpadDownHeld = true;
+                    forsakenPowerTriggered = false;
+                }
+                if (dpadDownHeld)
+                {
+                    // If held long enough and not yet triggered, activate Forsaken Power
+                    if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) > holdThreshold)
+                    {
+                        if (Player.m_localPlayer != null)
+                        {
+                            allowForsakenPower = true;
+                            Player.m_localPlayer.StartGuardianPower(); // Use the guardian power
+                            forsakenPowerTriggered = true;
+                        }
+                    }
+
+                    // If released before threshold, show radial menu
+                    if (ZInput.GetButtonUp(ModInput.SpecialRadialButton.Name))
+                    {
+                        dpadDownHeld = false;
+                        if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) <= holdThreshold)
+                        {
+                            if (!RadialMenuIsOpen)
+                            {
+                                ShowRadialMenu();
+                            }
+                            else
+                            {
+                                CloseRadialMenu();
+                            }
+                        }
+                    }
+                }
+
+                else if (ZInput.GetButtonDown(ModInput.SpecialRadialButton.Name))
+                {
                     if (!RadialMenuIsOpen)
                     {
                         ShowRadialMenu();
@@ -566,5 +601,28 @@ namespace valheimmod
                 __result = true;
             }
         }
+    }
+
+    [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
+    class Player_UseGuardianPower_Patch
+    {
+        static bool Prefix(Player __instance)
+        {
+            if (!allowForsakenPower)
+            {
+                Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
+                // Prevent the guardian power from being used
+                return false;
+            }
+            else
+            {
+                Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
+                allowForsakenPower = false; // Reset the flag after use
+                return true;
+            }
+        }
+
+        // Or use Postfix if you want to run code after activation
+        // static void Postfix(Player __instance) { ... }
     }
 }
