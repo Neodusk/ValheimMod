@@ -234,7 +234,6 @@ namespace valheimmod
                     Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
             }
 
-            //start
             Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
             Vector2 mousePos = Input.mousePosition;
             Vector2 dir = mousePos - menuCenter;
