@@ -56,132 +56,6 @@ namespace valheimmod
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
         public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
 
-        private void AddStatusEffects()
-        {
-            StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
-            StatusEffect pendeffect = ScriptableObject.CreateInstance<StatusEffect>();
-            StatusEffect pendteleporteffect = ScriptableObject.CreateInstance<StatusEffect>();
-            StatusEffect teleporteffect = ScriptableObject.CreateInstance<StatusEffect>();
-            effect.name = "SpecialJumpEffect";
-            effect.m_name = "$special_jumpeffect";
-            effect.m_tooltip = "$special_jumpeffect_tooltip";
-            effect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
-            effect.m_startMessageType = MessageHud.MessageType.Center;
-            //effect.m_startMessage = "$special_jumpeffect_start";
-            effect.m_stopMessageType = MessageHud.MessageType.Center;
-            effect.m_ttl = 10f;
-            effect.m_cooldownIcon = effect.m_icon;
-            JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
-
-            pendeffect.name = "PendingSpecialJumpEffect";
-            pendeffect.m_name = "$pending_special_jumpeffect";
-            pendeffect.m_tooltip = "$special_jumpeffect_tooltip";
-            pendeffect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
-            pendeffect.m_startMessageType = MessageHud.MessageType.Center;
-            pendeffect.m_startMessage = "$pending_special_jumpeffect_start";
-            pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
-            pendeffect.m_stopMessage = "$pending_special_jumpeffect_stop";
-            pendeffect.m_ttl = 0f; // No TTL for pending effect
-            GameObject frostPrefab = ZNetScene.instance.GetPrefab("vfx_Frost");
-            GameObject leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
-            GameObject leafPuffHeathPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff_heath");
-            GameObject iceShardPrefab = ZNetScene.instance.GetPrefab("fx_iceshard_hit");
-            GameObject ghostDeathPrefab = ZNetScene.instance.GetPrefab("vfx_ghost_death");
-            GameObject soundPrefab = ZNetScene.instance.GetPrefab("sfx_Abomination_Attack2_slam_whoosh");
-            var effectList = new List<EffectList.EffectData>();
-
-            if (frostPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = frostPrefab,
-                    m_enabled = true,
-                    m_attach = true
-                });
-            }
-            if (leafPuffPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = leafPuffPrefab,
-                    m_enabled = true,
-                    m_attach = true,
-                    m_follow = true,
-                });
-            } if (leafPuffHeathPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = leafPuffHeathPrefab,
-                    m_enabled = true,
-                    m_attach = true,
-                    m_follow = true,
-                });
-            }if (ghostDeathPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = ghostDeathPrefab,
-                    m_enabled = true,
-                    m_attach = true,
-                    m_follow = true,
-                });
-            }
-            if (iceShardPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = iceShardPrefab,
-                    m_enabled = true,
-                    m_attach = true,
-                    m_follow = true,
-                });
-            }
-
-            if (soundPrefab != null)
-            {
-                effectList.Add(new EffectList.EffectData
-                {
-                    m_prefab = soundPrefab,
-                    m_enabled = true,
-                    m_attach = false,
-                    m_follow = false,
-                });
-            }
-
-
-            pendeffect.m_startEffects = new EffectList
-            {
-                m_effectPrefabs = effectList.ToArray()
-            };
-
-            // Unsubscribe so it only runs once
-            PrefabManager.OnPrefabsRegistered -= AddStatusEffects;
-            JumpPendingSpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
-
-            pendteleporteffect.name = "PendingTeleportEffect";
-            pendteleporteffect.m_name = "$pending_teleport_effect";
-            pendteleporteffect.m_tooltip = "$special_teleport_tooltip";
-            pendteleporteffect.m_icon = Sprite.Create(TeleportTexture, new Rect(0, 0, TeleportTexture.width, TeleportTexture.height), new Vector2(0.5f, 0.5f));
-            pendteleporteffect.m_startMessageType = MessageHud.MessageType.Center;
-            pendteleporteffect.m_startMessage = "$pending_teleporteffect_start";
-            pendteleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
-            pendteleporteffect.m_ttl = 0f; // No TTL for pending effect
-            teleporteffect.name = "TeleportEffect";
-            teleporteffect.m_name = "$teleport_effect";
-            teleporteffect.m_tooltip = "$special_teleport_cd_tooltip";
-            teleporteffect.m_icon = Sprite.Create(TeleportTexture, new Rect(0, 0, TeleportTexture.width, TeleportTexture.height), new Vector2(0.5f, 0.5f));
-            teleporteffect.m_startMessageType = MessageHud.MessageType.Center;
-            teleporteffect.m_startMessage = "$teleporteffect_start";
-            teleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
-            teleporteffect.m_stopMessage = "$teleporteffect_stop";
-            teleporteffect.m_ttl = 60f; // No TTL for pending effect
-            effect.m_cooldownIcon = effect.m_icon;
-            PendingTeleportHomeEffect = new CustomStatusEffect(pendteleporteffect, fixReference: false);
-            TeleportHomeEffect = new CustomStatusEffect(teleporteffect, fixReference: false);
-
-
-        }
         public class ModInput
         {
             public static ConfigEntry<KeyCode> SpecialRadialKeyConfig;
@@ -233,131 +107,8 @@ namespace valheimmod
                 } 
                 return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
             }
-
-
-            public static bool CallPendingSpecialJump()
-            {
-                // If user picks the superjump buff in radial, give them the buff
-                RadialAbility radial_ability = GetRadialAbility();
-                string ability_name = radial_ability.ToString();
-                if (ability_name == RadialAbility.SuperJump.ToString())
-                {
-
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
-                    {
-                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
-                    }
-                    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
-                }
-                return false;
-            }
-
-
-
-            public static void CallSpecialJump()
-            {
-                // if the player presses the jump button when they have the jump pending buff, give super jump effect
-
-                if (((ZInput.GetButton("Jump") || ZInput.GetButton("JoyJump")) && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
-                {
-                    Jotunn.Logger.LogInfo("Special jump button is pressed down");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
-                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
-                    {
-                        Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
-                        SpecialJumpTriggered = true;
-                        Jotunn.Logger.LogInfo($"SpecialJumpTriggered1 = {SpecialJumpTriggered}");
-                    }
-
-                }
-            }
-
-           
-
-            //public static bool CallPendingTreeCut()
-            //{
-            //    RadialAbility radial_ability = GetRadialAbility();
-            //    string ability_name = radial_ability.ToString();
-            //    if (ability_name == RadialAbility.SuperJump.ToString())
-            //    {
-            //        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(TreeCutPendingSpecialEffect.StatusEffect.m_nameHash))
-            //        {
-            //            Jotunn.Logger.LogInfo("Adding TreeCutPendingSpecialEffect status effect");
-            //            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.TreeCutPendingSpecialEffect.StatusEffect, true);
-            //        }
-            //        return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
-            //    }
-            //    return false;
-            //}
-
-            public static void CallPendingAbilities()
-            {
-                CallPendingSpecialJump();
-                CallPendingTeleportHome();
-            }
-
-            public static void CallSpecialAbilities()
-            {
-                CallSpecialJump();
-                
-            }
         }
 
-        public static bool CallPendingTeleportHome()
-        {
-            // If user picks the teleport home ability in radial, teleport them home
-            RadialAbility radial_ability = GetRadialAbility();
-            string ability_name = radial_ability.ToString();
-            if (radial_ability != RadialAbility.None)
-            {
-                Jotunn.Logger.LogInfo($"Radial ability selected: {ability_name}");
-                Jotunn.Logger.LogInfo($"RadialAbility to string {RadialAbility.TeleportHome.ToString()}");
-            }
-            if (ability_name == RadialAbility.TeleportHome.ToString())
-            {
-                if (!Player.m_localPlayer.m_seman.HaveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash))
-                {
-                    valheimmod.Instance.teleportCancelled = false;
-                    valheimmod.Instance.teleportPending = true;
-                    Jotunn.Logger.LogInfo("Adding TeleportHomeSpecialEffect status effect");
-                    Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.PendingTeleportHomeEffect.StatusEffect, true);
-                    valheimmod.Instance.StartTeleportCountdown(10);
-
-                } else
-                {
-                    CancelTeleportCountdown();
-                }
-                    return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
-            }
-            return false;
-        }
-        public static void CallTeleportHome()
-        {
-            //if ((ZInput))
-        }
-
-        public static void CancelTeleportCountdown()
-        {
-            if (valheimmod.Instance.teleportCountdownCoroutine != null)
-            {
-                valheimmod.Instance.StopCoroutine(valheimmod.Instance.teleportCountdownCoroutine);
-                valheimmod.Instance.teleportCountdownCoroutine = null;
-                if (Player.m_localPlayer != null)
-                {
-                    valheimmod.Instance.teleportCancelled = true;
-                    valheimmod.Instance.teleportPending = false;
-                    // Remove the pending teleport status effect if you want:
-                    if (Player.m_localPlayer != null)
-                    {
-                        Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash, false);
-                    }
-                }
-            }
-        }
 
         private void AddInputs()
         {
@@ -435,56 +186,11 @@ namespace valheimmod
             LoadAssets();
             AddLocs();
             AddInputs();
-            PrefabManager.OnPrefabsRegistered += AddStatusEffects;
+            PrefabManager.OnPrefabsRegistered += ModAbilitiesEffects.AddStatusEffects;
 
 
             // To learn more about Jotunn's features, go to
             // https://valheim-modding.github.io/Jotunn/tutorials/overview.html
-        }
-        public  void StartTeleportCountdown(int seconds)
-        {
-            if (teleportCountdownCoroutine != null)
-            {
-                StopCoroutine(teleportCountdownCoroutine);
-            }
-            teleportCountdownCoroutine = StartCoroutine(TeleportCountdownCoroutine(seconds));
-        }
-
-        private System.Collections.IEnumerator TeleportCountdownCoroutine(int seconds)
-        {
-            for (int i = seconds; i > 0; i--)
-            {
-                if (Player.m_localPlayer != null)
-                {
-                    Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Teleporting home in {i}...");
-                }
-                yield return new WaitForSeconds(1f);
-
-                // Optional: If teleport was cancelled during countdown, exit early
-                if (teleportCancelled || !teleportPending)
-                {
-                    teleportCountdownCoroutine = null;
-                    yield break;
-                }
-            }
-            teleportCountdownCoroutine = null;
-
-            // Only run this if teleport wasn't cancelled
-            if (!teleportCancelled && teleportPending)
-            {
-                // Place your post-countdown logic here
-                Player.m_localPlayer.m_seman.AddStatusEffect(TeleportHomeEffect.StatusEffect, true);
-                PlayerProfile profile = Game.instance.GetPlayerProfile();
-                Vector3 homepoint = profile.GetCustomSpawnPoint(); // Get the player's home point
-                if (homepoint == Vector3.zero)
-                {
-                    Player.m_localPlayer.Message(MessageHud.MessageType.Center, "You don't have a bed. Teleporting to Sacrificial Stones");
-                    homepoint = profile.GetHomePoint(); // Fallback to the default home point
-                }
-                Player.m_localPlayer.TeleportTo(homepoint, Quaternion.identity, true); // TelepoSetCustomSpawnPointrt the player to their home point
-                Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
-                teleportPending = false;
-            }
         }
 
         private void Update()
@@ -561,7 +267,7 @@ namespace valheimmod
                 }
                 if (!RadialMenuIsOpen)
                 {
-                    ModInput.CallSpecialAbilities();
+                    ModAbilities.CallSpecialAbilities();
                 }
 
 
