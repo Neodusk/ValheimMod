@@ -41,7 +41,7 @@ namespace valheimmod
             RadialAbility.SuperJump, // 1
             RadialAbility.TreeCut,  // 2
             RadialAbility.MineExplode,       // 3
-            RadialAbility.TeleportHome       // 3
+            RadialAbility.TeleportHome       // 4
         };
 
         private static string GetRadialAbilityName(RadialAbility ability)
