@@ -17,7 +17,6 @@ namespace valheimmod
     {
         public static GameObject radialMenuInstance;
         public static bool RadialMenuIsOpen = false;
-        public static GameObject radialButtonPrefab; // Assign this in the inspector with a Unity UI Button prefab
         public static int radialItemClicked;
         public static int gamepadSelectedIndex = -1;
         private static List<GameObject> radialButtonHighlights = new List<GameObject>();
@@ -42,7 +41,7 @@ namespace valheimmod
             RadialAbility.SuperJump, // 1
             RadialAbility.TreeCut,  // 2
             RadialAbility.MineExplode,       // 3
-            RadialAbility.TeleportHome       // 3
+            RadialAbility.TeleportHome       // 4
         };
 
         private static string GetRadialAbilityName(RadialAbility ability)
@@ -103,9 +102,12 @@ namespace valheimmod
         {
             for (int i = 0; i < radialButtons.Count; i++)
             {
-                var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
-                if (text != null)
-                    text.color = (i == gamepadSelectedIndex) ? Color.yellow : Color.white;
+                if (radialButtons[i] != null)
+                {
+                    var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                    if (text != null)
+                        text.color = (i == gamepadSelectedIndex) ? Color.yellow : Color.white;
+                }
             }
         }
 
@@ -228,13 +230,6 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
-            foreach (var name in ZInput.instance.m_buttons.Keys)
-            {
-                if (ZInput.GetButtonDown(name))
-                    Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
-            }
-
-            //start
             Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
             Vector2 mousePos = Input.mousePosition;
             Vector2 dir = mousePos - menuCenter;
@@ -291,37 +286,6 @@ namespace valheimmod
             {
                 Jotunn.Logger.LogInfo("Right click or special radial button pressed, closing radial menu.");
                 CloseRadialMenu();
-            }
-        }
-
-        public class RadialMenu : MonoBehaviour
-        {
-            public int segmentCount = 6;
-            public float radius = 100f;
-            public GameObject buttonPrefab; // Assign a Unity UI Button prefab
-
-            void Start()
-            {
-                CreateRadialMenu();
-            }
-
-            void CreateRadialMenu()
-            {
-                for (int i = 0; i < segmentCount; i++)
-                {
-                    float angle = i * Mathf.PI * 2f / segmentCount;
-                    Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                    GameObject buttonObj = Instantiate(buttonPrefab, transform);
-                    buttonObj.GetComponent<RectTransform>().anchoredPosition = pos;
-                    buttonObj.GetComponentInChildren<Text>().text = $"Option {i + 1}";
-                    int index = i;
-                    buttonObj.GetComponent<Button>().onClick.AddListener(() => OnSegmentClicked(index));
-                }
-            }
-
-            void OnSegmentClicked(int index)
-            {
-                Debug.Log($"Radial menu option {index + 1} clicked!");
             }
         }
     }
