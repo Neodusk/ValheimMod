@@ -478,11 +478,10 @@ namespace valheimmod
                 Vector3 homepoint = profile.GetCustomSpawnPoint(); // Get the player's home point
                 if (homepoint == Vector3.zero)
                 {
-                    Player.m_localPlayer.Message(MessageHud.MessageType.Center, "You have not set a home point yet.");
-                    teleportPending = false;
-                    yield break;
+                    Player.m_localPlayer.Message(MessageHud.MessageType.Center, "You don't have a bed. Teleporting to Sacrificial Stones");
+                    homepoint = profile.GetHomePoint(); // Fallback to the default home point
                 }
-                Player.m_localPlayer.TeleportTo(homepoint, Quaternion.identity, true); // Teleport the player to their home point
+                Player.m_localPlayer.TeleportTo(homepoint, Quaternion.identity, true); // TelepoSetCustomSpawnPointrt the player to their home point
                 Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
                 teleportPending = false;
             }

@@ -102,9 +102,12 @@ namespace valheimmod
         {
             for (int i = 0; i < radialButtons.Count; i++)
             {
-                var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
-                if (text != null)
-                    text.color = (i == gamepadSelectedIndex) ? Color.yellow : Color.white;
+                if (radialButtons[i] != null)
+                {
+                    var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
+                    if (text != null)
+                        text.color = (i == gamepadSelectedIndex) ? Color.yellow : Color.white;
+                }
             }
         }
 
