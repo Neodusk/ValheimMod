@@ -19,7 +19,7 @@ using static valheimmod.valheimmod;
 
 namespace valheimmod
 {
-    
+
 
 
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
@@ -51,6 +51,7 @@ namespace valheimmod
         public bool teleportCancelled = false;
         public bool teleportPending = false;
         public string teleportEndingMsg = "Traveling...";
+        public static int currentDay = 0;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -83,8 +84,8 @@ namespace valheimmod
                    "SpecialRadialKeyClose",
                    InputManager.GamepadButton.ButtonEast,
                    new ConfigDescription("Gamepad button to close the radial menu")
-                ); 
-                
+                );
+
 
                 // Register the key with Jotunn's InputManager
                 SpecialRadialButton = new ButtonConfig
@@ -104,7 +105,7 @@ namespace valheimmod
                 if (ZInput.GetButton(ModInput.SpecialRadialButton.Name) && !RadialMenuIsOpen)
                 {
                     ShowRadialMenu();
-                } 
+                }
                 return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
             }
         }
@@ -132,7 +133,7 @@ namespace valheimmod
             }
             RadialSegmentSprites = new Sprite[4];
             RadialSegmentHighlightSprites = new Sprite[4];
-            string[] segmentFiles = { "radial_n.png", "radial_e.png", "radial_s.png", "radial_w.png"};
+            string[] segmentFiles = { "radial_n.png", "radial_e.png", "radial_s.png", "radial_w.png" };
             string[] segmentHighlightFiles = { "rh_n.png", "rh_e.png", "rh_s.png", "rh_w.png" };
             for (int i = 0; i < segmentFiles.Length; i++)
             {
@@ -141,8 +142,8 @@ namespace valheimmod
                 var texHighlight = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentHighlightFiles[i]));
                 RadialSegmentHighlightSprites[i] = Sprite.Create(texHighlight, new Rect(0, 0, texHighlight.width, texHighlight.height), new Vector2(0.5f, 0.5f));
             }
-                //TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
-                Sprite TestSprite = Sprite.Create(SpecialJumpTexture, new Rect(0f, 0f, SpecialJumpTexture.width, SpecialJumpTexture.height), Vector2.zero);
+            //TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
+            Sprite TestSprite = Sprite.Create(SpecialJumpTexture, new Rect(0f, 0f, SpecialJumpTexture.width, SpecialJumpTexture.height), Vector2.zero);
 
             // Load asset bundle from filesystem
             //TestAssets = AssetUtils.LoadAssetBundle(Path.Combine(modPath, "Assets/jotunnlibtest"));
@@ -156,7 +157,7 @@ namespace valheimmod
 
         private void AddLocs()
         {
-            
+
             // Use the instance of the CustomLocalization object instead of trying to call it statically  
             Localization.AddTranslation("English", new Dictionary<string, string>
             {
@@ -211,7 +212,8 @@ namespace valheimmod
                 // Check if both are mapped to the same physical button
                 if (ZInput.GetButtonDown("JoyGP"))
                 {
-                    if (ZInput.GetButtonDown(radialButton)) {
+                    if (ZInput.GetButtonDown(radialButton))
+                    {
                         sameButtonAsGP = true;
                     }
                     dpadDownPressTime = Time.time;
@@ -269,218 +271,247 @@ namespace valheimmod
                 {
                     ModAbilities.CallSpecialAbilities();
                 }
-
-
-            }
-        }
-        
-    public static class JumpState
-    {
-        public static Dictionary<Character, bool> SpecialJumpActive = new Dictionary<Character, bool>();
-    }
-
-    [HarmonyPatch(typeof(Character), nameof(Character.Jump))]
-    class Jump_Patch
-    {
-        static void Prefix(Character __instance)
-        {
-            if (__instance.IsPlayer())
-            {
-                bool specialJump = false;
-                if (Player.m_localPlayer != null && Player.m_localPlayer == __instance)
+                if (TeleportHomeEffect?.StatusEffect != null)
                 {
-                    specialJump = valheimmod.SpecialJumpTriggered;
-                }
-                JumpState.SpecialJumpActive[__instance] = specialJump;
-                Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
-                if (specialJump)
-                {
-                    Jotunn.Logger.LogInfo("Jumped with special jump key");
-                    __instance.m_jumpForce = SpecialJumpForce;
-                }
-                else
-                {
-                    Jotunn.Logger.LogInfo("Jumped with default jump key");
-                    __instance.m_jumpForce = DefaultJumpForce; // Default jump force
-                }
-                //valheimmod.SpecialJumpTriggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
-            }
-            bool s2;
-            s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
-            Jotunn.Logger.LogInfo($"prefix jump checking fall damage. Special jump active: {s2}");
-        }
-    }
-
-    [HarmonyPatch(typeof(Character), "UpdateGroundContact")]
-    class Character_Landing_Patch
-    {
-        // Track previous grounded state per character
-        static Dictionary<Character, bool> wasOnGround = new Dictionary<Character, bool>();
-
-        static void Postfix(Character __instance)
-        {
-            if (!__instance.IsPlayer() || !JumpState.SpecialJumpActive.TryGetValue(__instance, out bool specialJump) || !specialJump) { 
-                return;
-            }
-            Jotunn.Logger.LogInfo($"Character {__instance.m_name} is checking ground contact.");
-            bool isOnGround = __instance.IsOnGround();
-
-            // Get previous state (default to true to avoid false positives on first frame)
-            bool prevOnGround = wasOnGround.TryGetValue(__instance, out var prev) ? prev : true;
-            var currentVel = __instance.m_body.velocity;
-            // Detect landing: was not on ground, now is on ground
-            if (!prevOnGround && isOnGround)
-            {
-                if (__instance.IsPlayer())
-                {
-                    Jotunn.Logger.LogInfo("Player has landed!");
-                    Vector3 targetVel = new Vector3(currentVel.x, 0f, currentVel.z);
-                    __instance.m_body.velocity = targetVel;
-                    JumpState.SpecialJumpActive[__instance] = false;
-                }
-            }
-            if (!prevOnGround && !isOnGround && __instance.m_body.velocity.y < -5f)
-            {
-
-                float gentleFallSpeed = -6f; // Set to a gentle fall speed
-                Vector3 targetVel = new Vector3(currentVel.x, gentleFallSpeed, currentVel.z);
-                __instance.m_body.velocity = Vector3.Lerp(currentVel, targetVel, 0.1f);
-                Jotunn.Logger.LogInfo($"Gentle falling velocity: {__instance.m_body.velocity}");
-            }
-
-            // Update state
-            wasOnGround[__instance] = isOnGround;
-            bool s2;
-            s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
-            Jotunn.Logger.LogInfo($"postfix updateground checking fall damage. Special jump active: {s2}");
-
-        }
-    }
-}
-    [HarmonyPatch(typeof(SEMan), nameof(SEMan.ModifyFallDamage))]
-    class NoFallDamage_SEMan_Patch
-    {
-        static void Prefix(SEMan __instance, float baseDamage, ref float damage)
-        {
-            // Get the Character this SEMan belongs toSpecialJumpTriggered
-            Character character = __instance.m_character;
-            bool s2;
-            s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
-            Jotunn.Logger.LogInfo($"nofalldmg checking fall damage. Special jump active: {s2}");
-            if (character != null && character.IsPlayer() &&
-                JumpState.SpecialJumpActive.TryGetValue(character, out bool specialJump) && specialJump)
-            {
-                damage = 0f;
-                Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
-                valheimmod.SpecialJumpTriggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
-
-            }
-            // TODO: Player will still take fall damage if they spam the jump button even in the air 
-        }
-    }
-
-
-    [HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
-    class StatusEffect_Update_Patch
-    {
-        private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
-        private static void SpecialJumpSEPatch(StatusEffect __instance, Character ___m_character)
-        {
-            if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
-            {
-                // Only spawn if enough time has passed (e.g., 1 second)
-                float now = Time.time;
-                if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
-                {
-                    lastVfxTime[___m_character] = now;
-
-                    Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
-                    var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
-                    if (leafPuffPrefab != null)
+                    int day = EnvMan.instance.GetDay();
+                    if (currentDay != day)
                     {
-                        var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
-                        vfx.transform.SetParent(___m_character.transform);
+                        if (Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
+                        {
+                            if (Player.m_localPlayer.m_seman.HaveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash))
+                            {
+                                Player.m_localPlayer.m_seman.RemoveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash, false);
+
+                            }
+                            currentDay = day;
+                        }
                     }
                 }
             }
         }
-        static void Postfix(StatusEffect __instance, Character ___m_character)
+
+        public static class JumpState
         {
-            SpecialJumpSEPatch(__instance, ___m_character);
+            public static Dictionary<Character, bool> SpecialJumpActive = new Dictionary<Character, bool>();
         }
-    }
 
-    [HarmonyPatch(typeof(Player), "Update")]
-    class Player_CameraBlock_RadialMenu_Patch
-    {
-        static bool wasRadialMenuOpen = false;
-
-        static void Prefix(Player __instance)
+        [HarmonyPatch(typeof(Character), nameof(Character.Jump))]
+        class Jump_Patch
         {
-            if (valheimmod.RadialMenuIsOpen)
+            static void Prefix(Character __instance)
             {
-                if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                if (__instance.IsPlayer())
                 {
-                    ZInput.instance.m_mouseDelta.Disable();
+                    bool specialJump = false;
+                    if (Player.m_localPlayer != null && Player.m_localPlayer == __instance)
+                    {
+                        specialJump = valheimmod.SpecialJumpTriggered;
+                    }
+                    JumpState.SpecialJumpActive[__instance] = specialJump;
+                    Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
+                    if (specialJump)
+                    {
+                        Jotunn.Logger.LogInfo("Jumped with special jump key");
+                        __instance.m_jumpForce = SpecialJumpForce;
+                    }
+                    else
+                    {
+                        Jotunn.Logger.LogInfo("Jumped with default jump key");
+                        __instance.m_jumpForce = DefaultJumpForce; // Default jump force
+                    }
+                    //valheimmod.SpecialJumpTriggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
                 }
-                wasRadialMenuOpen = true;
+                bool s2;
+                s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
+                Jotunn.Logger.LogInfo($"prefix jump checking fall damage. Special jump active: {s2}");
             }
-            else if (wasRadialMenuOpen)
+        }
+
+        [HarmonyPatch(typeof(Character), "UpdateGroundContact")]
+        class Character_Landing_Patch
+        {
+            // Track previous grounded state per character
+            static Dictionary<Character, bool> wasOnGround = new Dictionary<Character, bool>();
+
+            static void Postfix(Character __instance)
             {
-                // Re-enable mouse look when menu closes
-                if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                if (!__instance.IsPlayer() || !JumpState.SpecialJumpActive.TryGetValue(__instance, out bool specialJump) || !specialJump)
                 {
-                    ZInput.instance.m_mouseDelta.Enable();
+                    return;
                 }
-                wasRadialMenuOpen = false;
-            }
-        }
-    }
+                Jotunn.Logger.LogInfo($"Character {__instance.m_name} is checking ground contact.");
+                bool isOnGround = __instance.IsOnGround();
 
-    [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
-    class Player_AttackInput_RadialBlock_Patch
-    {
-        static bool Prefix(Player __instance, float dt)
-        {
-            if (valheimmod.radialMenuInstance != null && valheimmod.radialMenuInstance.activeSelf)
-            {
-                return false;
-            }
-            return true;
-        }
-    }
-    [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
-    class Hud_InRadial_RadialMenu_Patch
-    {
-        static void Postfix(ref bool __result)
-        {
-            if (valheimmod.RadialMenuIsOpen)
-            {
-                __result = true;
-            }
-        }
-    }
+                // Get previous state (default to true to avoid false positives on first frame)
+                bool prevOnGround = wasOnGround.TryGetValue(__instance, out var prev) ? prev : true;
+                var currentVel = __instance.m_body.velocity;
+                // Detect landing: was not on ground, now is on ground
+                if (!prevOnGround && isOnGround)
+                {
+                    if (__instance.IsPlayer())
+                    {
+                        Jotunn.Logger.LogInfo("Player has landed!");
+                        Vector3 targetVel = new Vector3(currentVel.x, 0f, currentVel.z);
+                        __instance.m_body.velocity = targetVel;
+                        JumpState.SpecialJumpActive[__instance] = false;
+                    }
+                }
+                if (!prevOnGround && !isOnGround && __instance.m_body.velocity.y < -5f)
+                {
 
-    [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
-    class Player_UseGuardianPower_Patch
-    {
-        static bool Prefix(Player __instance)
-        {
-            if (!allowForsakenPower)
-            {
-                Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
-                // Prevent the guardian power from being used
-                return false;
+                    float gentleFallSpeed = -6f; // Set to a gentle fall speed
+                    Vector3 targetVel = new Vector3(currentVel.x, gentleFallSpeed, currentVel.z);
+                    __instance.m_body.velocity = Vector3.Lerp(currentVel, targetVel, 0.1f);
+                    Jotunn.Logger.LogInfo($"Gentle falling velocity: {__instance.m_body.velocity}");
+                }
+
+                // Update state
+                wasOnGround[__instance] = isOnGround;
+                bool s2;
+                s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
+                Jotunn.Logger.LogInfo($"postfix updateground checking fall damage. Special jump active: {s2}");
+
             }
-            else
+        }
+
+        [HarmonyPatch(typeof(SEMan), nameof(SEMan.ModifyFallDamage))]
+        class NoFallDamage_SEMan_Patch
+        {
+            static void Prefix(SEMan __instance, float baseDamage, ref float damage)
             {
-                Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
-                allowForsakenPower = false; // Reset the flag after use
+                // Get the Character this SEMan belongs toSpecialJumpTriggered
+                Character character = __instance.m_character;
+                bool s2;
+                s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
+                Jotunn.Logger.LogInfo($"nofalldmg checking fall damage. Special jump active: {s2}");
+                if (character != null && character.IsPlayer() &&
+                    JumpState.SpecialJumpActive.TryGetValue(character, out bool specialJump) && specialJump)
+                {
+                    damage = 0f;
+                    Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
+                    SpecialJumpTriggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
+
+                }
+                // TODO: Player will still take fall damage if they spam the jump button even in the air 
+            }
+        }
+
+
+        [HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
+        class StatusEffect_Update_Patch
+        {
+            private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
+            private static void SpecialJumpSEPatch(StatusEffect __instance, Character ___m_character)
+            {
+                if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
+                {
+                    // Only spawn if enough time has passed (e.g., 1 second)
+                    float now = Time.time;
+                    if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
+                    {
+                        lastVfxTime[___m_character] = now;
+
+                        Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
+                        var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
+                        if (leafPuffPrefab != null)
+                        {
+                            var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
+                            vfx.transform.SetParent(___m_character.transform);
+                        }
+                    }
+                }
+            }
+            static void Postfix(StatusEffect __instance, Character ___m_character)
+            {
+                SpecialJumpSEPatch(__instance, ___m_character);
+            }
+        }
+
+        [HarmonyPatch(typeof(Player), "Update")]
+        class Player_CameraBlock_RadialMenu_Patch
+        {
+            static bool wasRadialMenuOpen = false;
+
+            static void Prefix(Player __instance)
+            {
+                if (RadialMenuIsOpen)
+                {
+                    if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                    {
+                        ZInput.instance.m_mouseDelta.Disable();
+                    }
+                    wasRadialMenuOpen = true;
+                }
+                else if (wasRadialMenuOpen)
+                {
+                    // Re-enable mouse look when menu closes
+                    if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                    {
+                        ZInput.instance.m_mouseDelta.Enable();
+                    }
+                    wasRadialMenuOpen = false;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
+        class Player_AttackInput_RadialBlock_Patch
+        {
+            static bool Prefix(Player __instance, float dt)
+            {
+                if (radialMenuInstance != null && radialMenuInstance.activeSelf)
+                {
+                    return false;
+                }
                 return true;
             }
         }
+        [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
+        class Hud_InRadial_RadialMenu_Patch
+        {
+            static void Postfix(ref bool __result)
+            {
+                if (RadialMenuIsOpen)
+                {
+                    __result = true;
+                }
+            }
+        }
 
-        // Or use Postfix if you want to run code after activation
-        // static void Postfix(Player __instance) { ... }
+        [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
+        class Player_UseGuardianPower_Patch
+        {
+            static bool Prefix(Player __instance)
+            {
+                if (!allowForsakenPower)
+                {
+                    Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
+                    // Prevent the guardian power from being used
+                    return false;
+                }
+                else
+                {
+                    Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
+                    allowForsakenPower = false; // Reset the flag after use
+                    return true;
+                }
+            }
+
+            // Or use Postfix if you want to run code after activation
+            // static void Postfix(Player __instance) { ... }
+        }
+        [HarmonyPatch(typeof(Player), "Awake")]
+        class Player_Awake_DayTracker_Patch
+        {
+            static void Postfix(Player __instance)
+            {
+                if (__instance.IsPlayer())
+                {
+                    int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
+                    currentDay = day;
+                    Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
+                }
+            }
+        }
     }
 }

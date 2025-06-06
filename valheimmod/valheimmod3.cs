@@ -272,7 +272,7 @@ namespace valheimmod
                 teleporteffect.m_startMessage = "$teleporteffect_start";
                 teleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
                 teleporteffect.m_stopMessage = "$teleporteffect_stop";
-                teleporteffect.m_ttl = 60f; // No TTL for pending effect
+                teleporteffect.m_ttl = 0f;
 
                 PendingTeleportHomeEffect = new CustomStatusEffect(pendteleporteffect, fixReference: false);
                 TeleportHomeEffect = new CustomStatusEffect(teleporteffect, fixReference: false);
