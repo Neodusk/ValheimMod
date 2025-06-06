@@ -183,7 +183,7 @@ namespace valheimmod
                     button.GetComponent<Button>().onClick.AddListener(() =>
                     {
                         SetRadialAbility(index);
-                        ModInput.CallPendingAbilities(); // If you want to trigger the ability immediately
+                        ModAbilities.CallPendingAbilities(Instance); // If you want to trigger the ability immediately
                         CloseRadialMenu();
                     }
 
