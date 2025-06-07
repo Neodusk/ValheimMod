@@ -174,6 +174,7 @@ namespace valheimmod
                 {   "$special_teleport_cd_tooltip", "Cannot instant travel home right now."},
                 {   "teleporteffect_start", "Traveling.."},
                 {   "$teleporteffect_stop", "You can now hearth home."},
+                {   "$teleporteffect_cd", "You can not hearth home until tomorrow."},
             });
         }
 

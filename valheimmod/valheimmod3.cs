@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using Jotunn.Entities;
 using Jotunn.Managers;
+using Mono.Security.Interface;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -216,6 +217,11 @@ namespace valheimmod
                 }
                 if (ability_name == RadialAbility.TeleportHome.ToString())
                 {
+                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash))
+                    {
+                        Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$teleporteffect_cd");
+                        return false;
+                    }
                     if (!Player.m_localPlayer.m_seman.HaveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash))
                     {
                         valheimmod.Instance.teleportCancelled = false;
@@ -273,6 +279,7 @@ namespace valheimmod
                 teleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
                 teleporteffect.m_stopMessage = "$teleporteffect_stop";
                 teleporteffect.m_ttl = 0f;
+                teleporteffect.m_cooldownIcon = teleporteffect.m_icon;
 
                 PendingTeleportHomeEffect = new CustomStatusEffect(pendteleporteffect, fixReference: false);
                 TeleportHomeEffect = new CustomStatusEffect(teleporteffect, fixReference: false);
