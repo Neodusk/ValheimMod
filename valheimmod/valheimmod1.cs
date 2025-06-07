@@ -42,7 +42,7 @@ namespace valheimmod
         public static Texture2D TeleportTexture;
         public static Sprite[] RadialSegmentSprites;
         public static Sprite[] RadialSegmentHighlightSprites;
-        public static bool allowForsakenPower = false;
+        public static bool allowForsakenPower = true;
         private float dpadDownPressTime = -1f;
         private bool dpadDownHeld = false;
         private bool forsakenPowerTriggered = false;
@@ -199,58 +199,52 @@ namespace valheimmod
         {
             if (ZInput.instance != null)
             {
-                //foreach (var name in ZInput.instance.m_buttons.Keys)
-                //{
-                //    if (ZInput.GetButtonDown(name))
-                //        Jotunn.Logger.LogInfo($"ZInput button pressed: {name}");
-                //}
-
-                // todo check that JoyGP and SpecialRadialButton are the same button before doign this
+                // todo check that JoyGP and SpecialRadialButton are the same button before doing this to help with user remap
                 string guardianPowerButton = "JoyGP";
-                string radialButton = ModInput.SpecialRadialButton.Name;
-                string radialButtonvalue = ModInput.SpecialRadialButton.GamepadButton.ToString();
-                bool sameButtonAsGP = false;
                 // Check if both are mapped to the same physical button
-                if (ZInput.GetButtonDown("JoyGP"))
-                {
-                    if (ZInput.GetButtonDown(radialButton))
-                    {
-                        sameButtonAsGP = true;
-                    }
-                    dpadDownPressTime = Time.time;
-                    dpadDownHeld = true;
-                    forsakenPowerTriggered = false;
-                }
-                if (dpadDownHeld)
-                {
-                    // If held long enough and not yet triggered, activate Forsaken Power
-                    if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) > holdThreshold)
-                    {
-                        if (Player.m_localPlayer != null)
-                        {
-                            allowForsakenPower = true;
-                            Player.m_localPlayer.StartGuardianPower(); // Use the guardian power
-                            forsakenPowerTriggered = true;
-                        }
-                    }
 
-                    // If released before threshold, show radial menu
-                    if (ZInput.GetButtonUp(ModInput.SpecialRadialButton.Name))
+                if (ZInput.IsGamepadActive())
+                {
+                    allowForsakenPower = false; // default to false, only set to true if we detect the button press
+
+                    if (ZInput.GetButtonDown(guardianPowerButton))
                     {
-                        dpadDownHeld = false;
-                        if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) <= holdThreshold)
+                        dpadDownPressTime = Time.time;
+                        dpadDownHeld = true;
+                        forsakenPowerTriggered = false;
+                    }
+                    if (dpadDownHeld)
+                    {
+                        // If held long enough and not yet triggered, activate Forsaken Power
+                        if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) > holdThreshold)
                         {
-                            if (!RadialMenuIsOpen)
+                            if (Player.m_localPlayer != null)
                             {
-                                ShowRadialMenu();
+                                allowForsakenPower = true;
+                                Player.m_localPlayer.StartGuardianPower(); // Use the guardian power
+                                forsakenPowerTriggered = true;
                             }
-                            else
+                        }
+
+                        // If released before threshold, show radial menu
+                        if (ZInput.GetButtonUp(ModInput.SpecialRadialButton.Name))
+                        {
+                            dpadDownHeld = false;
+                            if (!forsakenPowerTriggered && (Time.time - dpadDownPressTime) <= holdThreshold)
                             {
-                                CloseRadialMenu();
+                                if (!RadialMenuIsOpen)
+                                {
+                                    ShowRadialMenu();
+                                }
+                                else
+                                {
+                                    CloseRadialMenu();
+                                }
                             }
                         }
                     }
                 }
+
 
                 else if (ZInput.GetButtonDown(ModInput.SpecialRadialButton.Name))
                 {
@@ -484,18 +478,22 @@ namespace valheimmod
         {
             static bool Prefix(Player __instance)
             {
-                if (!allowForsakenPower)
+                if (ZInput.IsGamepadActive())
                 {
-                    Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
-                    // Prevent the guardian power from being used
-                    return false;
+                    if (!allowForsakenPower)
+                    {
+                        Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
+                        // Prevent the guardian power from being used
+                        return false;
+                    }
+                    else
+                    {
+                        Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
+                        // allowForsakenPower = false; // Reset the flag after use
+                        return true;
+                    }
                 }
-                else
-                {
-                    Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
-                    allowForsakenPower = false; // Reset the flag after use
-                    return true;
-                }
+                return true;
             }
 
             // Or use Postfix if you want to run code after activation
