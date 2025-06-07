@@ -37,7 +37,11 @@ namespace valheimmod
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect PendingTeleportHomeEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for the special jump
+        public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for teleport
+        public static CustomStatusEffect PendingSpectralAxeEffect;
+        public static CustomStatusEffect SpectralAxeEffect;
+        public static CustomItem SpectralAxeItem; // Custom item for the spectral axe
+        public static Texture2D SpectralAxeTexture;
         public static Texture2D SpecialJumpTexture;
         public static Texture2D TeleportTexture;
         public static Sprite[] RadialSegmentSprites;
@@ -52,6 +56,7 @@ namespace valheimmod
         public bool teleportPending = false;
         public string teleportEndingMsg = "Traveling...";
         public static int currentDay = 0;
+        public static bool blockAttack = false; // Flag to block attacks while radial menu is open
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -125,6 +130,7 @@ namespace valheimmod
             string modPath = Path.GetDirectoryName(Info.Location);
 
             // Load texture from filesystem
+            SpectralAxeTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/spectralaxe.png"));
             SpecialJumpTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
             TeleportTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
             if (SpecialJumpTexture == null)
@@ -211,6 +217,7 @@ namespace valheimmod
                 string radialButtonvalue = ModInput.SpecialRadialButton.GamepadButton.ToString();
                 bool sameButtonAsGP = false;
                 // Check if both are mapped to the same physical button
+                // TODO: FIX THIS IT STOPS KEYBOARD GP FROM WORKING
                 if (ZInput.GetButtonDown("JoyGP"))
                 {
                     if (ZInput.GetButtonDown(radialButton))
@@ -460,7 +467,7 @@ namespace valheimmod
         {
             static bool Prefix(Player __instance, float dt)
             {
-                if (radialMenuInstance != null && radialMenuInstance.activeSelf)
+                if ((radialMenuInstance != null && radialMenuInstance.activeSelf) || blockAttack)
                 {
                     return false;
                 }

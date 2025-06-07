@@ -30,7 +30,7 @@ namespace valheimmod
         {
             None = 0,
             SuperJump,
-            TreeCut,
+            SpectralAxe,
             MineExplode,
             TeleportHome,
         }
@@ -39,7 +39,7 @@ namespace valheimmod
         {
             RadialAbility.None,      // 0 (not used)
             RadialAbility.SuperJump, // 1
-            RadialAbility.TreeCut,  // 2
+            RadialAbility.SpectralAxe,  // 2
             RadialAbility.MineExplode,       // 3
             RadialAbility.TeleportHome       // 4
         };
@@ -49,7 +49,7 @@ namespace valheimmod
             return ability switch
             {
                 RadialAbility.SuperJump => "Super Jump",
-                RadialAbility.TreeCut => "Spectral Axe",
+                RadialAbility.SpectralAxe => "Spectral Axe",
                 RadialAbility.MineExplode => "Mine Explosion",
                 RadialAbility.TeleportHome => "Hearth",
                 _ => "None"

@@ -40,10 +40,12 @@ namespace valheimmod
             {
                 SpecialJump.CallPending();
                 SpecialTeleport.CallPending(Instance);
+                //SpectralAxe.CallPending();
             }
             public static void CallSpecialAbilities()
             {
                 SpecialJump.Call();
+                //SpectralAxe.Call();
 
             }
         }
@@ -213,7 +215,6 @@ namespace valheimmod
                 if (radial_ability != RadialAbility.None)
                 {
                     Jotunn.Logger.LogInfo($"Radial ability selected: {ability_name}");
-                    Jotunn.Logger.LogInfo($"RadialAbility to string {RadialAbility.TeleportHome.ToString()}");
                 }
                 if (ability_name == RadialAbility.TeleportHome.ToString())
                 {
@@ -322,6 +323,181 @@ namespace valheimmod
                 }
             }
         }
+
+        public class SpectralAxe
+        {
+            private static GameObject heldAxeInstance;
+            public static void CallPending()
+            {
+                // If user picks the spectral axe ability in radial, give them the spectral axe
+                RadialAbility radial_ability = GetRadialAbility();
+                string ability_name = radial_ability.ToString();
+                if (ability_name == RadialAbility.SpectralAxe.ToString())
+                {
+                    if (Player.m_localPlayer == null || Player.m_localPlayer.m_seman == null ||
+                        PendingSpectralAxeEffect == null || PendingSpectralAxeEffect.StatusEffect == null)
+                    {
+                        return;
+                    }
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpectralAxeEffect.StatusEffect.m_nameHash))
+                    {
+                        Player.m_localPlayer.m_seman.AddStatusEffect(PendingSpectralAxeEffect.StatusEffect, true);
+                        if (heldAxeInstance == null)
+                        {
+                            GiveSpectralAxe();
+                        }
+                        //Jotunn.Logger.LogInfo("Adding SpectralAxe status effect");
+                        //Player.m_localPlayer.m_seman.AddStatusEffect(SpectralAxeEffect.StatusEffect, true);
+                    }
+                    return;
+                }
+            }
+            public static void Call()
+            {
+                if (Player.m_localPlayer == null || Player.m_localPlayer.m_seman == null ||
+                    PendingSpectralAxeEffect == null || PendingSpectralAxeEffect.StatusEffect == null)
+                {
+                    return;
+                }
+
+                // If the player presses the attack button while holding the spectral axe, perform a spectral attack
+                if (Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpectralAxeEffect.StatusEffect.m_nameHash) && (ZInput.GetButton("Attack") || ZInput.GetButton("JoyAttack")))
+                {
+                    //blockAttack = true;
+                    if (ZInput.GetButtonDown("Attack") || ZInput.GetButtonDown("JoyAttack"))
+                    {
+                        Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpectralAxeEffect.StatusEffect.m_nameHash, false);
+                        Jotunn.Logger.LogInfo("Spectral Axe attack called");
+                        ThrowSpectralAxe();
+                        //blockAttack = false;
+                        //Player.m_localPlayer.UseItem(SpectralAxeItem.ItemData);
+                    }
+                    Player.m_localPlayer.m_seman.AddStatusEffect(SpectralAxeEffect.StatusEffect, true);
+                }
+            }
+
+            private static void GiveSpectralAxe()
+            {
+                // Load the projectile prefab (ensure it's registered in ZNetScene)
+                //GameObject prefab = ZNetScene.instance.GetPrefab("SpectralAxeProjectile");
+                GameObject prefab = ZNetScene.instance.GetPrefab("AxeBronze");
+                if (prefab == null)
+                {
+                    Jotunn.Logger.LogError("SpectralAxeProjectile prefab not found!");
+                    return;
+                }
+
+                // Instantiate and parent to player's hand
+                Jotunn.Logger.LogInfo("Instantiating Spectral Axe in player's hand");
+                Transform hand = Player.m_localPlayer.m_visEquipment.m_rightHand;
+                heldAxeInstance = UnityEngine.Object.Instantiate(prefab, hand.position, hand.rotation);
+                heldAxeInstance.transform.localPosition = Vector3.zero;
+                heldAxeInstance.transform.localRotation = Quaternion.identity;
+                heldAxeInstance.name = "SpectralAxe"; // Set a name for easier debugging
+                heldAxeInstance.AddComponent<AxeDebug>(); // Add a debug component to track destruction
+                Jotunn.Logger.LogInfo("Spectral Axe instantiated and parented to player's hand.");
+            }
+
+            private static void ThrowSpectralAxe()
+            {
+                if (heldAxeInstance == null)
+                {
+                    Jotunn.Logger.LogError("Held axe instance is null. Cannot throw spectral axe.");
+                    return;
+                }
+                heldAxeInstance.transform.parent = null;
+                Rigidbody rb = heldAxeInstance.GetComponent<Rigidbody>();
+                if (rb == null)
+                {
+                    rb = heldAxeInstance.AddComponent<Rigidbody>();
+                    Jotunn.Logger.LogInfo("Added Rigidbody to held axe instance.");
+                }
+                // Force physics state
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                rb.velocity = Player.m_localPlayer.transform.forward * 30f + Vector3.up * 2f;
+                Jotunn.Logger.LogInfo($"Set velocity to {rb.velocity}");
+
+                if (heldAxeInstance.GetComponent<Collider>() == null)
+                {
+                    heldAxeInstance.AddComponent<BoxCollider>();
+                    Jotunn.Logger.LogInfo("Added BoxCollider to held axe instance.");
+                }
+
+                if (heldAxeInstance.GetComponent<SpectralAxeProjectile>() == null)
+                {
+                    heldAxeInstance.AddComponent<SpectralAxeProjectile>();
+                    Jotunn.Logger.LogInfo("Added SpectralAxeProjectile component to held axe instance.");
+                }
+
+                heldAxeInstance = null;
+            }
+
+            public static void AddEffects()
+            {
+                Jotunn.Logger.LogInfo("Adding Spectral Axe effects");
+                StatusEffect pendeffect = ScriptableObject.CreateInstance<StatusEffect>();
+                pendeffect.name = "PendinnSpectralAxeEffect";
+                pendeffect.m_name = "$spectral_axe_effect";
+                pendeffect.m_tooltip = "$spectral_axe_effect_tooltip";
+                SpectralAxeTexture = SpecialJumpTexture;
+                pendeffect.m_icon = Sprite.Create(SpectralAxeTexture, new Rect(0, 0, SpectralAxeTexture.width, SpectralAxeTexture.height), new Vector2(0.5f, 0.5f));
+                pendeffect.m_startMessageType = MessageHud.MessageType.Center;
+                pendeffect.m_startMessage = "$spectral_axe_effect_start";
+                pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
+                pendeffect.m_stopMessage = "$spectral_axe_effect_stop";
+                pendeffect.m_ttl = 0f; // No TTL for spectral axe
+                StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
+                effect.name = "SpectralAxeEffect";
+                effect.m_name = "$spectral_axe_effect";
+                effect.m_tooltip = "$spectral_axe_effect_tooltip";
+                effect.m_icon = Sprite.Create(SpectralAxeTexture, new Rect(0, 0, SpectralAxeTexture.width, SpectralAxeTexture.height), new Vector2(0.5f, 0.5f));
+                effect.m_startMessageType = MessageHud.MessageType.Center;
+                effect.m_startMessage = "$spectral_axe_effect_start";
+                effect.m_stopMessageType = MessageHud.MessageType.Center;
+                effect.m_stopMessage = "$spectral_axe_effect_stop";
+                effect.m_ttl = 0f; // No TTL for spectral axe
+                
+                //SpectralAxeItem.StatusEffect = new CustomStatusEffect(effect, fixReference: false);
+                PendingSpectralAxeEffect = new CustomStatusEffect(pendeffect, fixReference: false);
+                SpectralAxeEffect = new CustomStatusEffect(effect, fixReference: false);
+                if (PendingSpectralAxeEffect.StatusEffect == null || SpectralAxeEffect.StatusEffect == null)
+                {
+                    Jotunn.Logger.LogError("Failed to create Spectral Axe status effects. Check the prefab registration.");
+                    return;
+                }
+            }
+        }
+
+        public class AxeDebug : MonoBehaviour
+        {
+            private void OnDestroy()
+            {
+                Jotunn.Logger.LogWarning("AxeDebug: heldAxeInstance was destroyed!");
+            }
+        }
+        public class SpectralAxeProjectile : MonoBehaviour
+        {
+            private void OnCollisionEnter(Collision collision)
+            {
+                // Check if hit object is a tree
+                if (collision.gameObject.GetComponent<TreeBase>() != null)
+                {
+                    // Deal damage or trigger effect
+                    var tree = collision.gameObject.GetComponent<TreeBase>();
+                    tree.Damage(new HitData
+                    {
+                        m_damage = new HitData.DamageTypes { m_chop = 100f },
+                        m_point = collision.contacts[0].point,
+                        m_dir = collision.relativeVelocity.normalized,
+                        m_attacker = Player.m_localPlayer.GetZDOID(),
+                    });
+                }
+
+                // Destroy the projectile after impact
+                Destroy(gameObject);
+            }
+        }
         public class ModAbilitiesEffects
         {
 
@@ -332,6 +508,7 @@ namespace valheimmod
             {
                 SpecialJump.AddEffects();
                 SpecialTeleport.AddEffects();
+                SpectralAxe.AddEffects();
             }
         }
     }
