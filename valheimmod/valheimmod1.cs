@@ -12,6 +12,7 @@ using Jotunn.Managers;
 using Jotunn.Utils;
 using Mono.Security.Cryptography;
 using MonoMod.Utils;
+using PlayFab.ClientModels;
 using UnityEngine;
 using UnityEngine.UI;
 using valheimmod;
@@ -38,8 +39,11 @@ namespace valheimmod
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect PendingTeleportHomeEffect; // Custom status effect for the special jump
         public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for the special jump
+        public static CustomStatusEffect PendingSpectralArrowEffect; // Custom status effect for the special jump
+        public static CustomStatusEffect SpectralArrowEffect; // Custom status effect for the special jump
         public static Texture2D SpecialJumpTexture;
         public static Texture2D TeleportTexture;
+        public static Texture2D SpectralArrowTexture;
         public static Sprite[] RadialSegmentSprites;
         public static Sprite[] RadialSegmentHighlightSprites;
         public static bool allowForsakenPower = true;
@@ -127,6 +131,7 @@ namespace valheimmod
             // Load texture from filesystem
             SpecialJumpTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
             TeleportTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
+            SpectralArrowTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
             if (SpecialJumpTexture == null)
             {
                 Jotunn.Logger.LogError("Failed to load SpecialJumpTexture! Check if the PNG is valid and not corrupted.");
@@ -461,6 +466,64 @@ namespace valheimmod
                 return true;
             }
         }
+
+        [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
+        class Player_AttackInput_Bow_Patch
+        {
+            static void Prefix(Player __instance, float dt)
+            {
+                // Only proceed if player has the pending spectral arrow effect
+        if (!(__instance.m_seman?.HaveStatusEffect(valheimmod.PendingSpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
+            return;
+
+        var weapon = __instance.GetCurrentWeapon();
+        if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
+        {
+                    // Store previous skill if not already stored
+                    if (!SpectralArrow.PreviousSkill.ContainsKey(__instance))
+                    {
+                        Skills.Skill defaultSkill = __instance.m_skills.GetSkill(Skills.SkillType.Bows);
+                        SpectralArrow.PreviousSkill[__instance] = defaultSkill.m_level;
+                        // Boost skill
+                        __instance.RaiseSkill(Skills.SkillType.Bows, 100f);
+
+            }
+
+            // Boost arrow velocity (set on the weapon for this shot)
+            weapon.m_shared.m_attack.m_projectileVel = 100f; // Set to desired fast value
+
+            // Track shots fired
+            if (!SpectralArrow.ShotsFired.ContainsKey(__instance))
+                SpectralArrow.ShotsFired[__instance] = 0;
+
+            SpectralArrow.ShotsFired[__instance]++;
+
+            Jotunn.Logger.LogInfo($"Spectral Arrow: Shot {SpectralArrow.ShotsFired[__instance]}");
+
+            // After 3 shots, revert skill and velocity, remove effect
+            if (SpectralArrow.ShotsFired[__instance] >= 3)
+            {
+                        // Revert skill
+                        if (SpectralArrow.PreviousSkill.TryGetValue(__instance, out float prevSkill))
+                        {
+                            __instance.RaiseSkill(Skills.SkillType.Bows, prevSkill);
+                            __instance.m_skills.GetSkill(Skills.SkillType.Bows).m_level = prevSkill;
+                }
+                // Revert velocity (set to default, e.g., 55f)
+                weapon.m_shared.m_attack.m_projectileVel = 55f;
+
+                // Remove effect
+                __instance.m_seman.RemoveStatusEffect(valheimmod.PendingSpectralArrowEffect.StatusEffect.m_nameHash, false);
+
+                // Cleanup
+                SpectralArrow.ShotsFired.Remove(__instance);
+                SpectralArrow.PreviousSkill.Remove(__instance);
+
+                Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
+            }
+        }
+        }
+    
         [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
         class Hud_InRadial_RadialMenu_Patch
         {
