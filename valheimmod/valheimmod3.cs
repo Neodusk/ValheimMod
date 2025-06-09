@@ -40,10 +40,12 @@ namespace valheimmod
             {
                 SpecialJump.CallPending();
                 SpecialTeleport.CallPending(Instance);
+                SpectralArrow.CallPending();
             }
             public static void CallSpecialAbilities()
             {
                 SpecialJump.Call();
+                SpectralArrow.Call();
 
             }
         }
@@ -319,69 +321,102 @@ namespace valheimmod
         {
             public static Dictionary<Player, int> ShotsFired = new Dictionary<Player, int>();
             public static Dictionary<Player, float> PreviousSkill = new Dictionary<Player, float>();
+            public static float defaultVelocity = 55f;
+            public static float specialVelocity = 100f;
             public static void Call()
             {
-                if (Player.m_localPlayer != null && Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpectralArrowEffect.StatusEffect.m_nameHash))
+                if (Player.m_localPlayer != null && Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
                 {
-                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpectralArrowEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
-                    {
-                        if (ZInput.GetButtonDown("Attack") || ZInput.GetButtonDown("JoyAttack"))
-                        {
-                            Jotunn.Logger.LogInfo("Special spectral arrow button is pressed down");
-                            Jotunn.Logger.LogInfo("Removing PendingSpectralArrowEffect status effect and adding SpectralArrowEffect status effect");
-                            Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpectralArrowEffect.StatusEffect.m_nameHash, false);
-                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.SpectralArrowEffect.StatusEffect, false);
-                        }
-                    }
+                    // if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowCDEffect.StatusEffect.m_nameHash))
+                    // {
+                    //     // if (ZInput.GetButtonDown("Attack") || ZInput.GetButtonDown("JoyAttack"))
+                    //     // {
+                    //         Jotunn.Logger.LogInfo("Special spectral arrow button is pressed down");
+                    //         Jotunn.Logger.LogInfo("Removing SpectralArrowEffect status effect and adding SpectralArrowEffect status effect");
+                    //         Player.m_localPlayer.m_seman.RemoveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash, false);
+                    //         Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.SpectralArrowCDEffect.StatusEffect, false);
+                    //     // }
+                    // }
 
                 }
             }
             public static bool CallPending()
             {
-                return false;
-            }
-            public static void Cancel()
-            {
+                if (Player.m_localPlayer == null)
+                {
+                    return false;
+                }
+                // If user picks the spectral arrow ability in radial, give them the buff
                 RadialAbility radial_ability = GetRadialAbility();
                 string ability_name = radial_ability.ToString();
-                // player cancelled the spectral arrow ability by clicking the radial button again
-                if (RadialMenuIsOpen && radial_ability == RadialAbility.SpectralArrow)
+                if (ability_name == RadialAbility.SpectralArrow.ToString())
                 {
-                    if (Player.m_localPlayer != null)
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowCDEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
                     {
-                        if (Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpectralArrowEffect.StatusEffect.m_nameHash))
+                        // If the player doesn't have the spectral arrow effect or the pending effect, add the pending effect
+                        Jotunn.Logger.LogInfo("Spectral Arrow ability selected, adding PendingSpectralArrowEffect status effect");
                         {
-                            Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpectralArrowEffect.StatusEffect.m_nameHash, false);
+                            Jotunn.Logger.LogInfo("Adding PendingSpectralArrowEffect status effect");
+                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.SpectralArrowEffect.StatusEffect, true);
                         }
-
+                        return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
                     }
+                    return false;
+                }
+                return false;
+            }
+            public static void Cancel(Player __instance, ItemDrop.ItemData weapon=null)
+            {
+                /// <summary>
+                /// Cancels the spectral arrow ability, removing the status effects and resetting the weapon projectile velocity.
+                /// Does not allow the player to cancel from radial menu, only from the status effect.
+                /// /// </summary>
+                if (__instance != null)
+                {
+                    if (__instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    {
+                        Jotunn.Logger.LogInfo("Removing SpectralArrowEffect status effect and adding SpectralArrowCDEffect status effect");
+                        __instance.m_seman.RemoveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash, false);
+                        __instance.m_seman.AddStatusEffect(SpectralArrowCDEffect.StatusEffect, false);
+                    }
+                    if (weapon != null)
+                    {
+                        Jotunn.Logger.LogInfo($"Resetting weapon projectile velocity to default {defaultVelocity}");
+                        weapon.m_shared.m_attack.m_projectileVel = defaultVelocity;
+                    }
+                    // remove the skill and reset the shots fired
+                    Jotunn.Logger.LogInfo("Resetting SpectralArrow skill level and shots fired");
+                    Player.m_localPlayer.m_skills.GetSkill(Skills.SkillType.Bows).m_level = PreviousSkill[Player.m_localPlayer];
+                    ShotsFired.Remove(Player.m_localPlayer);
+                    PreviousSkill.Remove(Player.m_localPlayer);
+                    Jotunn.Logger.LogInfo("Spectral Arrow ability cancelled");
                 }
             }
             public static void AddEffects()
             {
                 StatusEffect effect = ScriptableObject.CreateInstance<StatusEffect>();
                 StatusEffect pendeffect = ScriptableObject.CreateInstance<StatusEffect>();
-                pendeffect.name = "PendingSpectralArrowEffect";
-                pendeffect.m_name = "$pending_spectralarrow_effect";
-                pendeffect.m_tooltip = "$special_spectralarrow_tooltip";
+                pendeffect.name = "SpectralArrowEffect";
+                pendeffect.m_name = "$spectral_arrow_effect";
+                pendeffect.m_tooltip = "$special_spectral_arrow_tooltip";
                 pendeffect.m_icon = Sprite.Create(SpectralArrowTexture, new Rect(0, 0, SpectralArrowTexture.width, SpectralArrowTexture.height), new Vector2(0.5f, 0.5f));
-                pendeffect.m_startMessageType = MessageHud.MessageType.Center;
-                pendeffect.m_startMessage = "$pending_spectralarrow_start";
-                pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
+                pendeffect.m_startMessageType = MessageHud.MessageType.TopLeft;
+                pendeffect.m_startMessage = "$spectral_arrow_start";
+                pendeffect.m_stopMessageType = MessageHud.MessageType.TopLeft;
                 pendeffect.m_ttl = 0f; // No TTL for pending effect
-                effect.name = "SpectralArrowEffect";
+                effect.name = "SpectralArrowCDEffect";
                 effect.m_name = "$spectral_arrow_effect";
-                effect.m_tooltip = "$special_arrow_cd_tooltip";
+                effect.m_tooltip = "$spectral_arrow_cd_tooltip";
                 effect.m_icon = Sprite.Create(SpectralArrowTexture, new Rect(0, 0, SpectralArrowTexture.width, SpectralArrowTexture.height), new Vector2(0.5f, 0.5f));
-                effect.m_startMessageType = MessageHud.MessageType.Center;
-                effect.m_startMessage = "$spectrl_arrow_start";
-                effect.m_stopMessageType = MessageHud.MessageType.Center;
-                effect.m_stopMessage = "$spectrl_arrow_stop";
-                effect.m_ttl = 0f;
+                effect.m_startMessageType = MessageHud.MessageType.TopLeft;
+                effect.m_startMessage = "$spectral_arrow_cd_start";
+                effect.m_stopMessageType = MessageHud.MessageType.TopLeft;
+                effect.m_stopMessage = "$spectral_arrow_cd_stop";
+                effect.m_ttl = 60f * 30f; // 30 minutes cooldown
                 effect.m_cooldownIcon = effect.m_icon;
 
-                PendingSpectralArrowEffect = new CustomStatusEffect(pendeffect, fixReference: false);
-                SpectralArrowEffect = new CustomStatusEffect(effect, fixReference: false);
+                SpectralArrowEffect = new CustomStatusEffect(pendeffect, fixReference: false);
+                SpectralArrowCDEffect = new CustomStatusEffect(effect, fixReference: false);
             }
         }
         public class ModAbilitiesEffects
@@ -394,6 +429,7 @@ namespace valheimmod
             {
                 SpecialJump.AddEffects();
                 SpecialTeleport.AddEffects();
+                SpectralArrow.AddEffects();
             }
         }
     }

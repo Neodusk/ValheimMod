@@ -20,9 +20,6 @@ using static valheimmod.valheimmod;
 
 namespace valheimmod
 {
-
-
-
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     //[NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
@@ -37,10 +34,10 @@ namespace valheimmod
         public static int DefaultJumpForce = 8; // Set the default jump force
         public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
         public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect PendingTeleportHomeEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect PendingSpectralArrowEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect SpectralArrowEffect; // Custom status effect for the special jump
+        public static CustomStatusEffect PendingTeleportHomeEffect; // Custom status effect for the teleport home pending state
+        public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for the teleport home
+        public static CustomStatusEffect SpectralArrowEffect;
+        public static CustomStatusEffect SpectralArrowCDEffect;
         public static Texture2D SpecialJumpTexture;
         public static Texture2D TeleportTexture;
         public static Texture2D SpectralArrowTexture;
@@ -180,6 +177,12 @@ namespace valheimmod
                 {   "teleporteffect_start", "Traveling.."},
                 {   "$teleporteffect_stop", "You can now hearth home."},
                 {   "$teleporteffect_cd", "You can not hearth home until tomorrow."},
+                {   "spectral_arrow_effect", "Spectral Arrow"},
+                {   "spectral_arrow_start", "Choose your next 3 shots wisely.."},
+                {   "spectral_arrow_cd_tooltip", "You are worn out from the last 3 spectral arrows."},
+                {   "spectral_arrow_effect_tooltip", "Your next 3 shots will be spectral arrows."},
+                {   "spectral_arrow_cd_start", "You can not fire anymore spectral arrows right now."},
+                {   "spectral_arrow_cd_stop", "You can now fire spectral arrows."},
             });
         }
 
@@ -467,111 +470,121 @@ namespace valheimmod
             }
         }
 
+        [HarmonyPatch(typeof(Attack), "ProjectileAttackTriggered")]
+        class Player_ProjectileAttackTriggered_SpectralArrow_Patch
+        {
+            static void Postfix(Attack __instance)
+            {
+                var character = __instance.m_character as Player;
+                if (character == null)
+                    return;
+
+                if (!(character.m_seman?.HaveStatusEffect(valheimmod.SpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
+                    return;
+
+                var weapon = character.GetCurrentWeapon();
+                if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
+                {
+                    // Track shots fired
+                    SpectralArrow.ShotsFired[character]++;
+                    Jotunn.Logger.LogInfo($"Spectral Arrow: {character.m_name} has fired {SpectralArrow.ShotsFired[character]} shots.");
+                }
+            }
+        }
         [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
         class Player_AttackInput_Bow_Patch
         {
             static void Prefix(Player __instance, float dt)
             {
                 // Only proceed if player has the pending spectral arrow effect
-        if (!(__instance.m_seman?.HaveStatusEffect(valheimmod.PendingSpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
-            return;
+                if (!(__instance.m_seman?.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
+                    return;
 
-        var weapon = __instance.GetCurrentWeapon();
-        if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
-        {
+                var weapon = __instance.GetCurrentWeapon();
+                if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
+                {
+                    if (!__instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    {
+                        SpectralArrow.defaultVelocity = weapon.m_shared.m_attack.m_projectileVel;
+                        Jotunn.Logger.LogInfo($"Default arrow velocity set to: {SpectralArrow.defaultVelocity}");
+                    }
                     // Store previous skill if not already stored
                     if (!SpectralArrow.PreviousSkill.ContainsKey(__instance))
                     {
                         Skills.Skill defaultSkill = __instance.m_skills.GetSkill(Skills.SkillType.Bows);
                         SpectralArrow.PreviousSkill[__instance] = defaultSkill.m_level;
                         // Boost skill
-                        __instance.RaiseSkill(Skills.SkillType.Bows, 100f);
+                        __instance.m_skills.GetSkill(Skills.SkillType.Bows).m_level = 100f; // Set to desired fast value
 
+                    }
+
+                    // Boost arrow velocity (set on the weapon for this shot)
+                    weapon.m_shared.m_attack.m_projectileVel = SpectralArrow.specialVelocity; // Set to desired fast value
+
+                    // Track shots fired
+                    if (!SpectralArrow.ShotsFired.ContainsKey(__instance))
+                        SpectralArrow.ShotsFired[__instance] = 0;
+
+                    // After 3 shots, revert skill and velocity, remove effect
+                    if ((SpectralArrow.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    {
+                        Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {SpectralArrow.ShotsFired[__instance]} shots, reverting skill and velocity.");
+                        SpectralArrow.Cancel(__instance, weapon);
+
+                        Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
+                    }
+                }
             }
 
-            // Boost arrow velocity (set on the weapon for this shot)
-            weapon.m_shared.m_attack.m_projectileVel = 100f; // Set to desired fast value
-
-            // Track shots fired
-            if (!SpectralArrow.ShotsFired.ContainsKey(__instance))
-                SpectralArrow.ShotsFired[__instance] = 0;
-
-            SpectralArrow.ShotsFired[__instance]++;
-
-            Jotunn.Logger.LogInfo($"Spectral Arrow: Shot {SpectralArrow.ShotsFired[__instance]}");
-
-            // After 3 shots, revert skill and velocity, remove effect
-            if (SpectralArrow.ShotsFired[__instance] >= 3)
+            [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
+            class Hud_InRadial_RadialMenu_Patch
             {
-                        // Revert skill
-                        if (SpectralArrow.PreviousSkill.TryGetValue(__instance, out float prevSkill))
+                static void Postfix(ref bool __result)
+                {
+                    if (RadialMenuIsOpen)
+                    {
+                        __result = true;
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
+            class Player_UseGuardianPower_Patch
+            {
+                static bool Prefix(Player __instance)
+                {
+                    if (ZInput.IsGamepadActive())
+                    {
+                        if (!allowForsakenPower)
                         {
-                            __instance.RaiseSkill(Skills.SkillType.Bows, prevSkill);
-                            __instance.m_skills.GetSkill(Skills.SkillType.Bows).m_level = prevSkill;
-                }
-                // Revert velocity (set to default, e.g., 55f)
-                weapon.m_shared.m_attack.m_projectileVel = 55f;
-
-                // Remove effect
-                __instance.m_seman.RemoveStatusEffect(valheimmod.PendingSpectralArrowEffect.StatusEffect.m_nameHash, false);
-
-                // Cleanup
-                SpectralArrow.ShotsFired.Remove(__instance);
-                SpectralArrow.PreviousSkill.Remove(__instance);
-
-                Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
-            }
-        }
-        }
-    
-        [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
-        class Hud_InRadial_RadialMenu_Patch
-        {
-            static void Postfix(ref bool __result)
-            {
-                if (RadialMenuIsOpen)
-                {
-                    __result = true;
-                }
-            }
-        }
-
-        [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
-        class Player_UseGuardianPower_Patch
-        {
-            static bool Prefix(Player __instance)
-            {
-                if (ZInput.IsGamepadActive())
-                {
-                    if (!allowForsakenPower)
-                    {
-                        Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
-                        // Prevent the guardian power from being used
-                        return false;
+                            Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
+                            // Prevent the guardian power from being used
+                            return false;
+                        }
+                        else
+                        {
+                            Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
+                            // allowForsakenPower = false; // Reset the flag after use
+                            return true;
+                        }
                     }
-                    else
-                    {
-                        Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
-                        // allowForsakenPower = false; // Reset the flag after use
-                        return true;
-                    }
+                    return true;
                 }
-                return true;
-            }
 
-            // Or use Postfix if you want to run code after activation
-            // static void Postfix(Player __instance) { ... }
-        }
-        [HarmonyPatch(typeof(Player), "Awake")]
-        class Player_Awake_DayTracker_Patch
-        {
-            static void Postfix(Player __instance)
+                // Or use Postfix if you want to run code after activation
+                // static void Postfix(Player __instance) { ... }
+            }
+            [HarmonyPatch(typeof(Player), "Awake")]
+            class Player_Awake_DayTracker_Patch
             {
-                if (__instance.IsPlayer())
+                static void Postfix(Player __instance)
                 {
-                    int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
-                    currentDay = day;
-                    Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
+                    if (__instance.IsPlayer())
+                    {
+                        int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
+                        currentDay = day;
+                        Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
+                    }
                 }
             }
         }
