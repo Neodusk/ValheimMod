@@ -19,6 +19,7 @@ namespace valheimmod
 {
     internal partial class valheimmod : BaseUnityPlugin
     {
+        public Coroutine teleportCountdownCoroutine;
         /// <summary>
         /// Used to start the Teleport countdown coroutine. Must be in the main valheimmod class
         /// <param name="seconds"></param>
@@ -52,6 +53,12 @@ namespace valheimmod
 
         public class SpecialJump
         {
+            public static Texture2D texture;
+            public static bool Triggered = false; // Flag to indicate if the special jump key is pressed down
+            public static int specialForce = 15; // Set the jump force for the special jump
+            public static int defaultForce = 8; // Set the default jump force
+            public static CustomStatusEffect SpecialEffect; // Custom status effect for the special jump
+            public static CustomStatusEffect PendingSpecialEffect; // Custom status effect for the special jump
             public static bool CallPending()
             {
                 // If user picks the superjump buff in radial, give them the buff
@@ -60,10 +67,10 @@ namespace valheimmod
                 if (ability_name == RadialAbility.SuperJump.ToString())
                 {
 
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                     {
-                        Jotunn.Logger.LogInfo("Adding JumpPendingSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpPendingSpecialEffect.StatusEffect, true);
+                        Jotunn.Logger.LogInfo("Adding SpecialJump.PendingSpecialEffect status effect");
+                        Player.m_localPlayer.m_seman.AddStatusEffect(PendingSpecialEffect.StatusEffect, true);
                     }
                     return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
                 }
@@ -73,18 +80,18 @@ namespace valheimmod
             {
                 // if the player presses the jump button when they have the jump pending buff, give super jump effect
 
-                if (((ZInput.GetButton("Jump") || ZInput.GetButton("JoyJump")) && Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash)))
+                if (((ZInput.GetButton("Jump") || ZInput.GetButton("JoyJump")) && Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash)))
                 {
                     Jotunn.Logger.LogInfo("Special jump button is pressed down");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect Duration: {valheimmod.JumpPendingSpecialEffect.StatusEffect.GetDuration()}");
-                    Jotunn.Logger.LogInfo($"JumpPendingSpecialEffect StatusEffect IsDone: {valheimmod.JumpPendingSpecialEffect.StatusEffect.IsDone()}");
-                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(JumpSpecialEffect.StatusEffect.m_nameHash))
+                    Jotunn.Logger.LogInfo($"SpecialJump.PendingSpecialEffect StatusEffect Duration: {PendingSpecialEffect.StatusEffect.GetDuration()}");
+                    Jotunn.Logger.LogInfo($"SpecialJump.PendingSpecialEffect StatusEffect IsDone: {PendingSpecialEffect.StatusEffect.IsDone()}");
+                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                     {
-                        Jotunn.Logger.LogInfo("Removing JumpPendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.RemoveStatusEffect(JumpPendingSpecialEffect.StatusEffect.m_nameHash, false);
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.JumpSpecialEffect.StatusEffect, false);
-                        SpecialJumpTriggered = true;
-                        Jotunn.Logger.LogInfo($"SpecialJumpTriggered1 = {SpecialJumpTriggered}");
+                        Jotunn.Logger.LogInfo("Removing SpecialJump.PendingSpecialEffect status effect and adding JumpSpecialEffect status effect");
+                        Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash, false);
+                        Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, false);
+                        Triggered = true;
+                        Jotunn.Logger.LogInfo($"SpecialJumpTriggered1 = {Triggered}");
                     }
 
                 }
@@ -172,18 +179,18 @@ namespace valheimmod
                 effect.name = "SpecialJumpEffect";
                 effect.m_name = "$special_jumpeffect";
                 effect.m_tooltip = "$special_jumpeffect_tooltip";
-                effect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
+                effect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 effect.m_startMessageType = MessageHud.MessageType.Center;
                 //effect.m_startMessage = "$special_jumpeffect_start";
                 effect.m_stopMessageType = MessageHud.MessageType.Center;
                 effect.m_ttl = 10f;
                 effect.m_cooldownIcon = effect.m_icon;
-                JumpSpecialEffect = new CustomStatusEffect(effect, fixReference: false);
+                SpecialEffect = new CustomStatusEffect(effect, fixReference: false);
 
                 pendeffect.name = "PendingSpecialJumpEffect";
                 pendeffect.m_name = "$pending_special_jumpeffect";
                 pendeffect.m_tooltip = "$special_jumpeffect_tooltip";
-                pendeffect.m_icon = Sprite.Create(SpecialJumpTexture, new Rect(0, 0, SpecialJumpTexture.width, SpecialJumpTexture.height), new Vector2(0.5f, 0.5f));
+                pendeffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 pendeffect.m_startMessageType = MessageHud.MessageType.Center;
                 pendeffect.m_startMessage = "$pending_special_jumpeffect_start";
                 pendeffect.m_stopMessageType = MessageHud.MessageType.Center;
@@ -196,7 +203,7 @@ namespace valheimmod
                     m_effectPrefabs = effectList.ToArray()
                 };
                 PrefabManager.OnPrefabsRegistered -= ModAbilitiesEffects.AddStatusEffects;
-                JumpPendingSpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
+                PendingSpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
             }
         }
         /// <summary>
@@ -204,6 +211,14 @@ namespace valheimmod
         /// </summary>
         public class SpecialTeleport
         {
+            public static Texture2D texture;
+            public static CustomStatusEffect PendingSpecialEffect; // Custom status effect for the teleport home pending state
+            public static CustomStatusEffect SpecialEffect; // Custom status effect for the teleport home
+            public static bool teleportCancelled = false;
+            public static bool teleportPending = false;
+            public static string teleportEndingMsg = "Traveling...";
+
+
             public static bool CallPending(valheimmod Instance)
             {
                 // If user picks the teleport home ability in radial, teleport them home
@@ -211,17 +226,17 @@ namespace valheimmod
                 string ability_name = radial_ability.ToString();
                 if (ability_name == RadialAbility.TeleportHome.ToString())
                 {
-                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash))
+                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                     {
                         Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$teleporteffect_cd");
                         return false;
                     }
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash))
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash))
                     {
-                        valheimmod.Instance.teleportCancelled = false;
-                        valheimmod.Instance.teleportPending = true;
+                        teleportCancelled = false;
+                        teleportPending = true;
                         Jotunn.Logger.LogInfo("Adding TeleportHomeSpecialEffect status effect");
-                        Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.PendingTeleportHomeEffect.StatusEffect, true);
+                        Player.m_localPlayer.m_seman.AddStatusEffect(PendingSpecialEffect.StatusEffect, true);
                         Instance.StartTeleportCountdown(10);
 
                     }
@@ -242,12 +257,12 @@ namespace valheimmod
                     valheimmod.Instance.teleportCountdownCoroutine = null;
                     if (Player.m_localPlayer != null)
                     {
-                        valheimmod.Instance.teleportCancelled = true;
-                        valheimmod.Instance.teleportPending = false;
+                        teleportCancelled = true;
+                        teleportPending = false;
                         // Remove the pending teleport status effect if you want:
                         if (Player.m_localPlayer != null)
                         {
-                            Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash, false);
+                            Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash, false);
                         }
                     }
                 }
@@ -259,7 +274,7 @@ namespace valheimmod
                 pendteleporteffect.name = "PendingTeleportEffect";
                 pendteleporteffect.m_name = "$pending_teleport_effect";
                 pendteleporteffect.m_tooltip = "$special_teleport_tooltip";
-                pendteleporteffect.m_icon = Sprite.Create(TeleportTexture, new Rect(0, 0, TeleportTexture.width, TeleportTexture.height), new Vector2(0.5f, 0.5f));
+                pendteleporteffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 pendteleporteffect.m_startMessageType = MessageHud.MessageType.Center;
                 pendteleporteffect.m_startMessage = "$pending_teleporteffect_start";
                 pendteleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
@@ -267,7 +282,7 @@ namespace valheimmod
                 teleporteffect.name = "TeleportEffect";
                 teleporteffect.m_name = "$teleport_effect";
                 teleporteffect.m_tooltip = "$special_teleport_cd_tooltip";
-                teleporteffect.m_icon = Sprite.Create(TeleportTexture, new Rect(0, 0, TeleportTexture.width, TeleportTexture.height), new Vector2(0.5f, 0.5f));
+                teleporteffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 teleporteffect.m_startMessageType = MessageHud.MessageType.Center;
                 teleporteffect.m_startMessage = "$teleporteffect_start";
                 teleporteffect.m_stopMessageType = MessageHud.MessageType.Center;
@@ -275,8 +290,8 @@ namespace valheimmod
                 teleporteffect.m_ttl = 0f;
                 teleporteffect.m_cooldownIcon = teleporteffect.m_icon;
 
-                PendingTeleportHomeEffect = new CustomStatusEffect(pendteleporteffect, fixReference: false);
-                TeleportHomeEffect = new CustomStatusEffect(teleporteffect, fixReference: false);
+                PendingSpecialEffect = new CustomStatusEffect(pendteleporteffect, fixReference: false);
+                SpecialEffect = new CustomStatusEffect(teleporteffect, fixReference: false);
             }
 
             public static System.Collections.IEnumerator TeleportCountdownCoroutine(int seconds)
@@ -290,19 +305,19 @@ namespace valheimmod
                     yield return new WaitForSeconds(1f);
 
                     // Optional: If teleport was cancelled during countdown, exit early
-                    if (valheimmod.Instance.teleportCancelled || !valheimmod.Instance.teleportPending)
+                    if (teleportCancelled || !teleportPending)
                     {
-                    valheimmod.Instance.teleportCountdownCoroutine = null;
+                        valheimmod.Instance.teleportCountdownCoroutine = null;
                         yield break;
                     }
                 }
                 valheimmod.Instance.teleportCountdownCoroutine = null;
 
                 // Only run this if teleport wasn't cancelled
-                if (!valheimmod.Instance.teleportCancelled && valheimmod.Instance.teleportPending)
+                if (!teleportCancelled && teleportPending)
                 {
                     // Place your post-countdown logic here
-                    Player.m_localPlayer.m_seman.AddStatusEffect(TeleportHomeEffect.StatusEffect, true);
+                    Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
                     PlayerProfile profile = Game.instance.GetPlayerProfile();
                     Vector3 homepoint = profile.GetCustomSpawnPoint(); // Get the player's home point
                     if (homepoint == Vector3.zero)
@@ -311,33 +326,27 @@ namespace valheimmod
                         homepoint = profile.GetHomePoint(); // Fallback to the default home point
                     }
                     Player.m_localPlayer.TeleportTo(homepoint, Quaternion.identity, true); // TelepoSetCustomSpawnPointrt the player to their home point
-                    Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingTeleportHomeEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
-                    valheimmod.Instance.teleportPending = false;
+                    Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
+                    teleportPending = false;
                 }
             }
         }
 
         public class SpectralArrow
         {
+            public static Texture2D texture;
+            public static Sprite[] textures = new Sprite[3];
+            public static CustomStatusEffect SpecialEffect;
+            public static CustomStatusEffect SpecialCDEffect;
             public static Dictionary<Player, int> ShotsFired = new Dictionary<Player, int>();
             public static Dictionary<Player, float> PreviousSkill = new Dictionary<Player, float>();
             public static float defaultVelocity = 55f;
             public static float specialVelocity = 100f;
             public static void Call()
             {
-                if (Player.m_localPlayer != null && Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                if (Player.m_localPlayer != null && Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                 {
-                    // if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowCDEffect.StatusEffect.m_nameHash))
-                    // {
-                    //     // if (ZInput.GetButtonDown("Attack") || ZInput.GetButtonDown("JoyAttack"))
-                    //     // {
-                    //         Jotunn.Logger.LogInfo("Special spectral arrow button is pressed down");
-                    //         Jotunn.Logger.LogInfo("Removing SpectralArrowEffect status effect and adding SpectralArrowEffect status effect");
-                    //         Player.m_localPlayer.m_seman.RemoveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash, false);
-                    //         Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.SpectralArrowCDEffect.StatusEffect, false);
-                    //     // }
-                    // }
-
+                    return;
                 }
             }
             public static bool CallPending()
@@ -351,13 +360,13 @@ namespace valheimmod
                 string ability_name = radial_ability.ToString();
                 if (ability_name == RadialAbility.SpectralArrow.ToString())
                 {
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowCDEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialCDEffect.StatusEffect.m_nameHash) && !Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                     {
                         // If the player doesn't have the spectral arrow effect or the pending effect, add the pending effect
                         Jotunn.Logger.LogInfo("Spectral Arrow ability selected, adding PendingSpectralArrowEffect status effect");
                         {
                             Jotunn.Logger.LogInfo("Adding PendingSpectralArrowEffect status effect");
-                            Player.m_localPlayer.m_seman.AddStatusEffect(valheimmod.SpectralArrowEffect.StatusEffect, true);
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
                         }
                         return ZInput.GetButton(ModInput.SpecialRadialButton.Name);
                     }
@@ -365,7 +374,7 @@ namespace valheimmod
                 }
                 return false;
             }
-            public static void Cancel(Player __instance, ItemDrop.ItemData weapon=null)
+            public static void Cancel(Player __instance, ItemDrop.ItemData weapon = null)
             {
                 /// <summary>
                 /// Cancels the spectral arrow ability, removing the status effects and resetting the weapon projectile velocity.
@@ -373,11 +382,11 @@ namespace valheimmod
                 /// /// </summary>
                 if (__instance != null)
                 {
-                    if (__instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    if (__instance.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
                     {
                         Jotunn.Logger.LogInfo("Removing SpectralArrowEffect status effect and adding SpectralArrowCDEffect status effect");
-                        __instance.m_seman.RemoveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash, false);
-                        __instance.m_seman.AddStatusEffect(SpectralArrowCDEffect.StatusEffect, false);
+                        __instance.m_seman.RemoveStatusEffect(SpecialEffect.StatusEffect.m_nameHash, false);
+                        __instance.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                     }
                     if (weapon != null)
                     {
@@ -399,7 +408,7 @@ namespace valheimmod
                 pendeffect.name = "SpectralArrowEffect";
                 pendeffect.m_name = "$spectral_arrow_effect";
                 pendeffect.m_tooltip = "$special_spectral_arrow_tooltip";
-                pendeffect.m_icon = Sprite.Create(SpectralArrowTexture, new Rect(0, 0, SpectralArrowTexture.width, SpectralArrowTexture.height), new Vector2(0.5f, 0.5f));
+                pendeffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 pendeffect.m_startMessageType = MessageHud.MessageType.TopLeft;
                 pendeffect.m_startMessage = "$spectral_arrow_start";
                 pendeffect.m_stopMessageType = MessageHud.MessageType.TopLeft;
@@ -407,7 +416,7 @@ namespace valheimmod
                 effect.name = "SpectralArrowCDEffect";
                 effect.m_name = "$spectral_arrow_effect";
                 effect.m_tooltip = "$spectral_arrow_cd_tooltip";
-                effect.m_icon = Sprite.Create(SpectralArrowTexture, new Rect(0, 0, SpectralArrowTexture.width, SpectralArrowTexture.height), new Vector2(0.5f, 0.5f));
+                effect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
                 effect.m_startMessageType = MessageHud.MessageType.TopLeft;
                 effect.m_startMessage = "$spectral_arrow_cd_start";
                 effect.m_stopMessageType = MessageHud.MessageType.TopLeft;
@@ -415,8 +424,38 @@ namespace valheimmod
                 effect.m_ttl = 60f * 30f; // 30 minutes cooldown
                 effect.m_cooldownIcon = effect.m_icon;
 
-                SpectralArrowEffect = new CustomStatusEffect(pendeffect, fixReference: false);
-                SpectralArrowCDEffect = new CustomStatusEffect(effect, fixReference: false);
+                SpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
+                SpecialCDEffect = new CustomStatusEffect(effect, fixReference: false);
+            }
+            public static void UpdateStatusEffectTexture(Hud __instance, StatusEffect statusEffect, int index)
+            {
+                if (statusEffect.m_name == SpecialEffect.StatusEffect.m_name)
+                {
+                    // Find the correct icon for the current arrow count
+                    int arrowsLeft = 3 - ShotsFired.GetValueOrDefault(Player.m_localPlayer, 0);
+                    if (arrowsLeft > 0 && arrowsLeft <= 3)
+                    {
+                        // Update the icon in the HUD
+                        RectTransform val2 = __instance.m_statusEffects[index];
+                        Image component = ((Component)((Transform)val2).Find("Icon")).GetComponent<Image>();
+                        component.sprite = textures[arrowsLeft - 1];
+                    }
+                }
+            }
+        }
+
+        public class TurtleDome
+        {
+            public static Texture2D texture;
+        }
+        
+        public static void UpdateStatusEffectTextures(Hud __instance, List<StatusEffect> statusEffects)
+        {
+            for (int j = 0; j < statusEffects.Count; j++)
+            {
+                StatusEffect statusEffect = statusEffects[j];
+                SpectralArrow.UpdateStatusEffectTexture(__instance, statusEffect, j);
+
             }
         }
         public class ModAbilitiesEffects

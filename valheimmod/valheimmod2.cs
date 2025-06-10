@@ -17,6 +17,8 @@ namespace valheimmod
     {
         public static GameObject radialMenuInstance;
         public static bool RadialMenuIsOpen = false;
+        public static Sprite[] RadialSegmentSprites;
+        public static Sprite[] RadialSegmentHighlightSprites;
         public static int radialItemClicked;
         public static int gamepadSelectedIndex = -1;
         private static List<GameObject> radialButtonHighlights = new List<GameObject>();
@@ -31,7 +33,7 @@ namespace valheimmod
             None = 0,
             SuperJump,
             SpectralArrow,
-            MineExplode,
+            TurtleDome,
             TeleportHome,
         }
 
@@ -40,7 +42,7 @@ namespace valheimmod
             RadialAbility.None,      // 0 (not used)
             RadialAbility.SuperJump, // 1
             RadialAbility.SpectralArrow,  // 2
-            RadialAbility.MineExplode,       // 3
+            RadialAbility.TurtleDome,       // 3
             RadialAbility.TeleportHome       // 4
         };
 
@@ -50,7 +52,7 @@ namespace valheimmod
             {
                 RadialAbility.SuperJump => "Super Jump",
                 RadialAbility.SpectralArrow => "Spectral Arrow",
-                RadialAbility.MineExplode => "Mine Explosion",
+                RadialAbility.TurtleDome => "Turtle Dome",
                 RadialAbility.TeleportHome => "Hearth",
                 _ => "None"
             };
@@ -89,7 +91,7 @@ namespace valheimmod
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             SetRadialAbility(0);
-            ZInput.ResetButtonStatus("Attack"); 
+            ZInput.ResetButtonStatus("Attack");
         }
 
         private static List<GameObject> radialButtons = new List<GameObject>();

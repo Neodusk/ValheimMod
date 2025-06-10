@@ -29,29 +29,11 @@ namespace valheimmod
         public const string PluginName = "valheimmod";
         public const string PluginVersion = "0.0.1";
         public static valheimmod Instance;
-        public static bool SpecialJumpTriggered = false; // Flag to indicate if the special jump key is pressed down
-        public static int SpecialJumpForce = 15; // Set the jump force for the special jump
-        public static int DefaultJumpForce = 8; // Set the default jump force
-        public static CustomStatusEffect JumpSpecialEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect JumpPendingSpecialEffect; // Custom status effect for the special jump
-        public static CustomStatusEffect PendingTeleportHomeEffect; // Custom status effect for the teleport home pending state
-        public static CustomStatusEffect TeleportHomeEffect; // Custom status effect for the teleport home
-        public static CustomStatusEffect SpectralArrowEffect;
-        public static CustomStatusEffect SpectralArrowCDEffect;
-        public static Texture2D SpecialJumpTexture;
-        public static Texture2D TeleportTexture;
-        public static Texture2D SpectralArrowTexture;
-        public static Sprite[] RadialSegmentSprites;
-        public static Sprite[] RadialSegmentHighlightSprites;
         public static bool allowForsakenPower = true;
         private float dpadDownPressTime = -1f;
         private bool dpadDownHeld = false;
         private bool forsakenPowerTriggered = false;
         private const float holdThreshold = 0.35f; // seconds
-        public Coroutine teleportCountdownCoroutine;
-        public bool teleportCancelled = false;
-        public bool teleportPending = false;
-        public string teleportEndingMsg = "Traveling...";
         public static int currentDay = 0;
 
         // Use this class to add your own localization to the game
@@ -126,10 +108,24 @@ namespace valheimmod
             string modPath = Path.GetDirectoryName(Info.Location);
 
             // Load texture from filesystem
-            SpecialJumpTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
-            TeleportTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
-            SpectralArrowTexture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
-            if (SpecialJumpTexture == null)
+            SpecialJump.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
+            SpecialTeleport.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
+            SpectralArrow.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/spectral_arrow.png"));
+            TurtleDome.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/turtle_dome.png"));
+            int maxOverlayTextures = 3; // Number of textures to load for the overlay
+            for (int i = 1; i <= maxOverlayTextures; i++)
+            {
+                var numberTexture = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets/spectral_arrow{i}.png"));
+                if (numberTexture != null)
+                {
+                    SpectralArrow.textures[i - 1] = Sprite.Create(numberTexture, new Rect(0, 0, numberTexture.width, numberTexture.height), new Vector2(0.5f, 0.5f));
+                }
+                else
+                {
+                    Jotunn.Logger.LogError($"Failed to load number texture: {i}");
+                }
+            }
+            if (SpecialJump.texture == null)
             {
                 Jotunn.Logger.LogError("Failed to load SpecialJumpTexture! Check if the PNG is valid and not corrupted.");
             }
@@ -144,12 +140,6 @@ namespace valheimmod
                 var texHighlight = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets", segmentHighlightFiles[i]));
                 RadialSegmentHighlightSprites[i] = Sprite.Create(texHighlight, new Rect(0, 0, texHighlight.width, texHighlight.height), new Vector2(0.5f, 0.5f));
             }
-            //TestTex = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/Untitled.jpg"));
-            Sprite TestSprite = Sprite.Create(SpecialJumpTexture, new Rect(0f, 0f, SpecialJumpTexture.width, SpecialJumpTexture.height), Vector2.zero);
-
-            // Load asset bundle from filesystem
-            //TestAssets = AssetUtils.LoadAssetBundle(Path.Combine(modPath, "Assets/jotunnlibtest"));
-            //Jotunn.Logger.LogInfo(TestAssets);
 
             // Print Embedded Resources
             Jotunn.Logger.LogInfo($"Embedded resources: {string.Join(", ", typeof(valheimmod).Assembly.GetManifestResourceNames())}");
@@ -274,16 +264,16 @@ namespace valheimmod
                 {
                     ModAbilities.CallSpecialAbilities();
                 }
-                if (TeleportHomeEffect?.StatusEffect != null)
+                if (SpecialTeleport.SpecialEffect?.StatusEffect != null)
                 {
                     int day = EnvMan.instance.GetDay();
                     if (currentDay != day)
                     {
                         if (Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
                         {
-                            if (Player.m_localPlayer.m_seman.HaveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash))
+                            if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash))
                             {
-                                Player.m_localPlayer.m_seman.RemoveStatusEffect(TeleportHomeEffect.StatusEffect.m_nameHash, false);
+                                Player.m_localPlayer.m_seman.RemoveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash, false);
 
                             }
                             currentDay = day;
@@ -308,21 +298,21 @@ namespace valheimmod
                     bool specialJump = false;
                     if (Player.m_localPlayer != null && Player.m_localPlayer == __instance)
                     {
-                        specialJump = valheimmod.SpecialJumpTriggered;
+                        specialJump = SpecialJump.Triggered;
                     }
                     JumpState.SpecialJumpActive[__instance] = specialJump;
                     Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
                     if (specialJump)
                     {
                         Jotunn.Logger.LogInfo("Jumped with special jump key");
-                        __instance.m_jumpForce = SpecialJumpForce;
+                        __instance.m_jumpForce = SpecialJump.specialForce;
                     }
                     else
                     {
                         Jotunn.Logger.LogInfo("Jumped with default jump key");
-                        __instance.m_jumpForce = DefaultJumpForce; // Default jump force
+                        __instance.m_jumpForce = SpecialJump.defaultForce; // Default jump force
                     }
-                    //valheimmod.SpecialJumpTriggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
+                    //valheimmod.SpecialJump.Triggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
                 }
                 bool s2;
                 s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
@@ -382,7 +372,6 @@ namespace valheimmod
         {
             static void Prefix(SEMan __instance, float baseDamage, ref float damage)
             {
-                // Get the Character this SEMan belongs toSpecialJumpTriggered
                 Character character = __instance.m_character;
                 bool s2;
                 s2 = JumpState.SpecialJumpActive.TryGetValue(character, out bool sj) ? sj : false;
@@ -392,7 +381,7 @@ namespace valheimmod
                 {
                     damage = 0f;
                     Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
-                    SpecialJumpTriggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
+                    SpecialJump.Triggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
 
                 }
                 // TODO: Player will still take fall damage if they spam the jump button even in the air 
@@ -479,7 +468,7 @@ namespace valheimmod
                 if (character == null)
                     return;
 
-                if (!(character.m_seman?.HaveStatusEffect(valheimmod.SpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
+                if (!(character.m_seman?.HaveStatusEffect(valheimmod.SpectralArrow.SpecialEffect.StatusEffect.m_nameHash) ?? false))
                     return;
 
                 var weapon = character.GetCurrentWeapon();
@@ -497,13 +486,13 @@ namespace valheimmod
             static void Prefix(Player __instance, float dt)
             {
                 // Only proceed if player has the pending spectral arrow effect
-                if (!(__instance.m_seman?.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash) ?? false))
+                if (!(__instance.m_seman?.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash) ?? false))
                     return;
 
                 var weapon = __instance.GetCurrentWeapon();
                 if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
                 {
-                    if (!__instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    if (!__instance.m_seman.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash))
                     {
                         SpectralArrow.defaultVelocity = weapon.m_shared.m_attack.m_projectileVel;
                         Jotunn.Logger.LogInfo($"Default arrow velocity set to: {SpectralArrow.defaultVelocity}");
@@ -526,7 +515,7 @@ namespace valheimmod
                         SpectralArrow.ShotsFired[__instance] = 0;
 
                     // After 3 shots, revert skill and velocity, remove effect
-                    if ((SpectralArrow.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(SpectralArrowEffect.StatusEffect.m_nameHash))
+                    if ((SpectralArrow.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash))
                     {
                         Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {SpectralArrow.ShotsFired[__instance]} shots, reverting skill and velocity.");
                         SpectralArrow.Cancel(__instance, weapon);
@@ -545,6 +534,32 @@ namespace valheimmod
                     {
                         __result = true;
                     }
+                }
+            }
+            [HarmonyPatch(typeof(Hud), "UpdateStatusEffects")]
+            class Hud_UpdateStatusEffects_Patch
+            {
+                static void Postfix(Hud __instance, List<StatusEffect> statusEffects)
+                {
+                    UpdateStatusEffectTextures(__instance, statusEffects);
+                    // // Loop through all status effects and update the icon if it's your Spectral Arrow effect
+                    // for (int j = 0; j < statusEffects.Count; j++)
+                    // {
+                    //     StatusEffect statusEffect = statusEffects[j];
+                    //     if (statusEffect.m_name == SpectralArrow.SpecialEffect.StatusEffect.m_name) // or use your internal name
+                    //     {
+                    //         // Find the correct icon for the current arrow count
+                    //         int arrowsLeft = 3 - valheimmod.SpectralArrow.ShotsFired.GetValueOrDefault(Player.m_localPlayer, 0);
+                    //         if (arrowsLeft > 0 && arrowsLeft <= 3)
+                    //         {
+                    //             // Update the icon in the HUD
+                    //             RectTransform val2 = __instance.m_statusEffects[j];
+                    //             Image component = ((Component)((Transform)val2).Find("Icon")).GetComponent<Image>();
+                    //             component.sprite = valheimmod.SpectralArrow.textures[arrowsLeft - 1];
+                    //         }
+
+                    //     }
+                    // }
                 }
             }
 
