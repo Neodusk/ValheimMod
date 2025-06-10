@@ -542,24 +542,6 @@ namespace valheimmod
                 static void Postfix(Hud __instance, List<StatusEffect> statusEffects)
                 {
                     UpdateStatusEffectTextures(__instance, statusEffects);
-                    // // Loop through all status effects and update the icon if it's your Spectral Arrow effect
-                    // for (int j = 0; j < statusEffects.Count; j++)
-                    // {
-                    //     StatusEffect statusEffect = statusEffects[j];
-                    //     if (statusEffect.m_name == SpectralArrow.SpecialEffect.StatusEffect.m_name) // or use your internal name
-                    //     {
-                    //         // Find the correct icon for the current arrow count
-                    //         int arrowsLeft = 3 - valheimmod.SpectralArrow.ShotsFired.GetValueOrDefault(Player.m_localPlayer, 0);
-                    //         if (arrowsLeft > 0 && arrowsLeft <= 3)
-                    //         {
-                    //             // Update the icon in the HUD
-                    //             RectTransform val2 = __instance.m_statusEffects[j];
-                    //             Image component = ((Component)((Transform)val2).Find("Icon")).GetComponent<Image>();
-                    //             component.sprite = valheimmod.SpectralArrow.textures[arrowsLeft - 1];
-                    //         }
-
-                    //     }
-                    // }
                 }
             }
 
