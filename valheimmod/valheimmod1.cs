@@ -585,5 +585,41 @@ namespace valheimmod
                 }
             }
         }
+        [HarmonyPatch(typeof(Game), nameof(Game.Logout))]
+        public static class Game_Logout_Patch
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
+                TurtleDome.OnPlayerLogout();
+            }
+        }
+        [HarmonyPatch(typeof(Game), nameof(Game.OnApplicationQuit))]
+        public static class Game_Quit_Patch
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
+                TurtleDome.OnPlayerLogout();
+            }
+        }
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
+        public static class Menu_QuitYes_Patch
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
+                TurtleDome.OnPlayerLogout();
+            }
+        }
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
+        public static class Menu_LogoutYes_Patch
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
+                TurtleDome.OnPlayerLogout();
+            }
+        }
     }
 }

@@ -42,6 +42,7 @@ namespace valheimmod
                 SpecialJump.CallPending();
                 SpecialTeleport.CallPending(Instance);
                 SpectralArrow.CallPending();
+                TurtleDome.CallPending();
             }
             public static void CallSpecialAbilities()
             {
@@ -443,10 +444,161 @@ namespace valheimmod
                 }
             }
         }
+        // public static IEnumerator DomeCoroutine(Vector3 position, float duration)
+        // {
+        //     float elapsed = 0f;
+        //     while (elapsed < duration)
+        //     {
+        //         GameObject shieldPrefab = ZNetScene.instance.GetPrefab("vfx_shieldgenerator_startup");
+        //         if (shieldPrefab != null)
+        //         {
+        //             UnityEngine.Object.Instantiate(shieldPrefab, position, Quaternion.identity);
+        //         }
+        //         yield return new WaitForSeconds(3f); // Adjust to match the effect's length
+        //         elapsed += 3f;
+        //     }
+        // }
 
         public class TurtleDome
         {
             public static Texture2D texture;
+            public static GameObject ActiveTurtleDome;
+            public static void Call()
+            {
+                if (Player.m_localPlayer == null) return;
+                GameObject domePrefab = ZNetScene.instance.GetPrefab("piece_shieldgenerator");
+                if (domePrefab != null)
+                {
+                    Vector3 pos = Player.m_localPlayer.transform.position;
+                    Quaternion rot = Quaternion.identity;
+                    ActiveTurtleDome = UnityEngine.Object.Instantiate(domePrefab, pos, rot);
+                    // Start a coroutine to set up the shield after one frame
+                    Player.m_localPlayer.StartCoroutine(SetupShieldNextFrame(ActiveTurtleDome));
+                }
+            }
+            public class MobOnlyShield : MonoBehaviour
+            {
+                private void OnTriggerEnter(Collider other)
+                {
+                    Jotunn.Logger.LogInfo($"MobOnlyShield OnTriggerEnter called for {other.name}");
+                    Character character = other.GetComponent<Character>();
+                    if (character != null && character.IsMonsterFaction(0f))
+                    {
+                        Jotunn.Logger.LogInfo($"Repelling mob: {character.name}");
+                        Vector3 repelDir = (character.transform.position - transform.position).normalized;
+                        character.m_body?.AddForce(repelDir * 50f, ForceMode.VelocityChange);
+
+                    }
+                    else if (character != null)
+                    {
+                        Jotunn.Logger.LogInfo($"Ignoring non-monster character: {character.name}");
+                    }
+                }
+                private void OnTriggerStay(Collider other)
+                {
+                    Character character = other.GetComponent<Character>();
+                    if (character != null && character.IsMonsterFaction(0f))
+                    {
+                        Vector3 repelDir = (character.transform.position - transform.position).normalized;
+                        character.m_body?.AddForce(repelDir * 50f, ForceMode.VelocityChange); // Use Force for continuous push
+                    }
+                }
+            }
+            private static IEnumerator SetupShieldNextFrame(GameObject dome)
+            {
+                yield return null; // Wait one frame
+
+                var shieldGen = dome.GetComponent<ShieldGenerator>();
+                if (shieldGen != null)
+                {
+                    shieldGen.m_offWhenNoFuel = false;
+                    shieldGen.m_maxShieldRadius = 4f; // Set the desired shield radius
+                    shieldGen.SetFuel(shieldGen.m_maxFuel);
+                    shieldGen.UpdateShield();
+
+                    // Hide all MeshRenderers except the dome
+                    foreach (var renderer in dome.GetComponentsInChildren<MeshRenderer>(true))
+                    {
+                        if (shieldGen.m_shieldDome == null || !renderer.transform.IsChildOf(shieldGen.m_shieldDome.transform))
+                        {
+                            renderer.enabled = false;
+                        }
+                    }
+                    // Add a collider to the dome mesh if not present
+                    var domeObj = shieldGen.m_shieldDome;
+                    // Remove unwanted components for visuals only
+                    UnityEngine.Object.Destroy(dome.GetComponent<Collider>());
+                    foreach (var col in dome.GetComponentsInChildren<Collider>())
+                    {
+                        UnityEngine.Object.Destroy(col);
+                    }
+                    if (domeObj != null)
+                    {
+                        var collider = domeObj.GetComponent<SphereCollider>();
+                        if (collider == null)
+                        {
+                            collider = domeObj.AddComponent<SphereCollider>();
+                            domeObj.AddComponent<MobOnlyShield>();
+                            collider.isTrigger = true; // Use trigger for custom logic
+                            collider.radius = shieldGen.m_maxShieldRadius; // Adjust as needed
+                        }
+                        float radius = shieldGen.m_maxShieldRadius;
+                        Vector3 center = domeObj.transform.position;
+                        // foreach (Character character in Character.GetAllCharacters())
+                        // {
+                        //     Jotunn.Logger.LogInfo($"Checking character {character.name} for dome collision, attemoting to kill");
+                        //     if (character != null && character.IsMonsterFaction(0f) && Vector3.Distance(character.transform.position, center) <= radius)
+                        //     {
+                        //         Jotunn.Logger.LogInfo($"Killing mob already inside dome: {character.name}");
+                        //         HitData hit = new HitData();
+                        //         hit.m_damage.m_damage = 99999f;
+                        //         hit.m_point = character.transform.position;
+                        //         hit.m_dir = (character.transform.position - center).normalized;
+                        //         hit.m_attacker = Player.m_localPlayer ? Player.m_localPlayer.GetZDOID() : ZDOID.None;
+                        //         character.Damage(hit);
+                        //     }
+                        // }
+                        // Set to a custom layer (make sure this layer exists and is set up in Unity)
+                        domeObj.layer = LayerMask.NameToLayer("character");
+                    }
+                    else
+                    {
+                        Jotunn.Logger.LogWarning("ShieldGenerator component not found on the instantiated dome!");
+                    }
+
+                    // Destroy the dome after 30 seconds
+                    yield return new WaitForSeconds(30f);
+                    if (dome != null)
+                    {
+                        UnityEngine.Object.Destroy(dome);
+                    }
+                }
+            }
+            public static void CallPending()
+            {
+                // If user picks the turtle dome ability in radial, give them the buff
+                RadialAbility radial_ability = GetRadialAbility();
+                string ability_name = radial_ability.ToString();
+                if (ability_name == RadialAbility.TurtleDome.ToString())
+                {
+                    // Add logic for turtle dome ability here
+                    Call();
+                }
+            }
+            public static void OnPlayerLogout()
+            {
+                Jotunn.Logger.LogInfo($"OnPlayerLogout called. Dome ref: {ActiveTurtleDome}");
+                if (ActiveTurtleDome != null)
+                {
+                    UnityEngine.Object.Destroy(ActiveTurtleDome);
+                    Jotunn.Logger.LogInfo("TurtleDome destroyed on logout/quit.");
+                    ActiveTurtleDome = null;
+                }
+                else
+                {
+                    Jotunn.Logger.LogInfo("No active TurtleDome to destroy.");
+                }
+            }
         }
         
         public static void UpdateStatusEffectTextures(Hud __instance, List<StatusEffect> statusEffects)
