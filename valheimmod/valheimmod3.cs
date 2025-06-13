@@ -42,7 +42,7 @@ namespace valheimmod
                 SpecialJump.CallPending();
                 SpecialTeleport.CallPending(Instance);
                 SpectralArrow.CallPending();
-                TurtleDome.CallPending();
+                ValhallaDome.CallPending();
             }
             public static void CallSpecialAbilities()
             {
@@ -343,6 +343,7 @@ namespace valheimmod
             public static Dictionary<Player, float> PreviousSkill = new Dictionary<Player, float>();
             public static float defaultVelocity = 55f;
             public static float specialVelocity = 100f;
+            internal static float cooldown = 30f; // cooldown time for the spectral arrow ability
             public static void Call()
             {
                 if (Player.m_localPlayer != null && Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash))
@@ -422,7 +423,7 @@ namespace valheimmod
                 effect.m_startMessage = "$spectral_arrow_cd_start";
                 effect.m_stopMessageType = MessageHud.MessageType.TopLeft;
                 effect.m_stopMessage = "$spectral_arrow_cd_stop";
-                effect.m_ttl = 60f * 30f; // 30 minutes cooldown
+                effect.m_ttl = 60f * cooldown; // 30 minutes cooldown
                 effect.m_cooldownIcon = effect.m_icon;
 
                 SpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
@@ -445,12 +446,18 @@ namespace valheimmod
             }
         }
 
-        public class TurtleDome
+        public class ValhallaDome
         {
             public static Texture2D texture;
-            public static GameObject ActiveTurtleDome;
+            public static GameObject ActiveDome;
             public static string LastDomeUID;
-            public static string turtledome_uid = "turtledome_uid";
+            public static string dome_uid = "valhalladome_uid";
+            public static CustomStatusEffect SpecialEffect;
+            public static CustomStatusEffect CDSpecialEffect;
+            public static bool abilityUsed = false; // Flag to indicate if the ability has been used
+            internal static float ttl = 30f; // Time before the dome is destroyed
+            internal static float cooldown = 120f * 60f; // Time before ability can be used again
+
             public static void Call()
             {
                 if (Player.m_localPlayer == null) return;
@@ -459,22 +466,48 @@ namespace valheimmod
                 {
                     Vector3 pos = Player.m_localPlayer.transform.position;
                     Quaternion rot = Quaternion.identity;
-                    ActiveTurtleDome = UnityEngine.Object.Instantiate(domePrefab, pos, rot);
-                    var znetView = ActiveTurtleDome.GetComponent<ZNetView>();
+                    ActiveDome = UnityEngine.Object.Instantiate(domePrefab, pos, rot);
+                    var znetView = ActiveDome.GetComponent<ZNetView>();
                     if (znetView != null && znetView.IsValid())
                     {
                         string uniqueId = System.Guid.NewGuid().ToString();
-                        znetView.GetZDO().Set(turtledome_uid, uniqueId);
+                        znetView.GetZDO().Set(dome_uid, uniqueId);
                         // Save this somewhere (e.g., static field) for later lookup
-                        TurtleDome.LastDomeUID = uniqueId;
-                        PlayerPrefs.SetString("TurtleDome_LastDomeUID", uniqueId);
+                        ValhallaDome.LastDomeUID = uniqueId;
+                        PlayerPrefs.SetString("Dome_LastDomeUID", uniqueId);
                         PlayerPrefs.Save();
 
-                        Jotunn.Logger.LogInfo($"TurtleDome created with UID: {uniqueId}");
+                        Jotunn.Logger.LogInfo($"Dome created with UID: {uniqueId}");
                     }
                     // Start a coroutine to set up the shield after one frame
-                    Player.m_localPlayer.StartCoroutine(SetupShieldNextFrame(ActiveTurtleDome));
+                    Player.m_localPlayer.StartCoroutine(SetupShieldNextFrame(ActiveDome));
                 }
+            }
+            public static void AddEffects()
+            {
+                StatusEffect cddomeeffect = ScriptableObject.CreateInstance<StatusEffect>();
+                StatusEffect domeeffect = ScriptableObject.CreateInstance<StatusEffect>();
+                cddomeeffect.name = "CDDomeEffect";
+                cddomeeffect.m_name = "$cd_dome_effect";
+                cddomeeffect.m_tooltip = "$cd_dome_tooltip";
+                cddomeeffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                cddomeeffect.m_startMessageType = MessageHud.MessageType.Center;
+                cddomeeffect.m_startMessage = "$cd_domeeffect_start";
+                cddomeeffect.m_stopMessageType = MessageHud.MessageType.Center;
+                cddomeeffect.m_ttl = cooldown; // No TTL for pending effect
+                cddomeeffect.m_cooldownIcon = cddomeeffect.m_icon;
+                domeeffect.name = "DomeEffect";
+                domeeffect.m_name = "$dome_effect";
+                domeeffect.m_tooltip = "$dome_tooltip";
+                domeeffect.m_icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                domeeffect.m_startMessageType = MessageHud.MessageType.Center;
+                domeeffect.m_startMessage = "$domeeffect_start";
+                domeeffect.m_stopMessageType = MessageHud.MessageType.Center;
+                domeeffect.m_stopMessage = "$domeeffect_stop";
+                domeeffect.m_ttl = ttl;
+
+                CDSpecialEffect = new CustomStatusEffect(cddomeeffect, fixReference: false);
+                SpecialEffect = new CustomStatusEffect(domeeffect, fixReference: false);
             }
             public class MobOnlyShield : MonoBehaviour
             {
@@ -541,19 +574,12 @@ namespace valheimmod
                         {
                             collider = domeObj.AddComponent<SphereCollider>();
                             collider.isTrigger = true; // Use trigger for custom logic
-                            // collider.radius = shieldGen.m_maxShieldRadius; // Adjust as needed
                             float visualRadius = shieldGen.m_maxShieldRadius;
                             Jotunn.Logger.LogInfo($"Dome scale: {domeObj.transform.lossyScale}, collider.radius: {collider.radius}, visualRadius: {visualRadius}");
                             float scale = domeObj.transform.lossyScale.x; // Use .x, .y, or .z if non-uniform
                             float fudge = 0.3f; // Adjust this value to change the size of the collider relative to the visual radius
                             collider.radius = (visualRadius / scale) * fudge; // Adjust radius based on the scale of the dome
                             domeObj.AddComponent<MobOnlyShield>();
-                            // GameObject debugSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                            // debugSphere.transform.SetParent(domeObj.transform, false);
-                            // debugSphere.transform.localPosition = Vector3.zero;
-                            // debugSphere.transform.localScale = Vector3.one * (collider.radius * 2f); // diameter = radius * 2
-                            // debugSphere.GetComponent<Collider>().enabled = false; // Disable collision on the debug sphere
-                            // debugSphere.GetComponent<Renderer>().material.color = new Color(0, 1, 0, 0.3f); // Green, semi-transparent
                         }
                         // Set to a custom layer (make sure this layer exists and is set up in Unity)
                         domeObj.layer = LayerMask.NameToLayer("character");
@@ -563,44 +589,49 @@ namespace valheimmod
                         Jotunn.Logger.LogWarning("ShieldGenerator component not found on the instantiated dome!");
                     }
 
-                    var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
+                    var timedDestruction = ActiveDome.GetComponent<TimedDestruction>();
                     if (timedDestruction == null)
                     {
-                        timedDestruction = ActiveTurtleDome.AddComponent<TimedDestruction>();
-                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ActiveTurtleDome");
+                        timedDestruction = ActiveDome.AddComponent<TimedDestruction>();
+                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ValhallaDome");
                     }
                         timedDestruction.m_forceTakeOwnershipAndDestroy = true;
-                        timedDestruction.m_timeout = 30f; // time before destruction
+                        timedDestruction.m_timeout = ttl; // time before destruction
                         timedDestruction.Trigger();
                         Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
                 }
             }
             public static void CallPending()
             {
-                // If user picks the turtle dome ability in radial, give them the buff
+                // If user picks the valhalla dome ability in radial, give them the buff
                 RadialAbility radial_ability = GetRadialAbility();
                 string ability_name = radial_ability.ToString();
-                if (ability_name == RadialAbility.TurtleDome.ToString())
+                if (ability_name == RadialAbility.ValhallaDome.ToString())
                 {
-                    // Add logic for turtle dome ability here
+                    if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialEffect.StatusEffect.m_nameHash) || Player.m_localPlayer.m_seman.HaveStatusEffect(CDSpecialEffect.StatusEffect.m_nameHash))
+                    {
+                        return;
+                    }
+                    Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
+                    ValhallaDome.abilityUsed = true; // Reset the active dome
                     Call();
                 }
             }
             
             public static void OnPlayerLogout()
             {
-                Jotunn.Logger.LogInfo($"OnPlayerLogout called. Dome ref: {ActiveTurtleDome}");
-                if (ActiveTurtleDome != null)
+                Jotunn.Logger.LogInfo($"OnPlayerLogout called. Dome ref: {ActiveDome}");
+                if (ActiveDome != null)
                 {
-                    var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
+                    var timedDestruction = ActiveDome.GetComponent<TimedDestruction>();
                     if (timedDestruction == null)
                     {
-                        timedDestruction = ActiveTurtleDome.AddComponent<TimedDestruction>();
-                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ActiveTurtleDome");
+                        timedDestruction = ActiveDome.AddComponent<TimedDestruction>();
+                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ValhallaDome");
                     }
                     else
                     {
-                        Jotunn.Logger.LogInfo("TimedDestruction component already exists on ActiveTurtleDome");
+                        Jotunn.Logger.LogInfo("TimedDestruction component already exists on ValhallaDome");
                     }
                         timedDestruction.m_forceTakeOwnershipAndDestroy = true;
                         timedDestruction.m_timeout = 0f; // or your desired time
@@ -610,7 +641,7 @@ namespace valheimmod
                     }
                 else
                     {
-                        Jotunn.Logger.LogInfo("No active TurtleDome to destroy.");
+                        Jotunn.Logger.LogInfo("No active Dome to destroy.");
                     }
                 }
             }
@@ -635,7 +666,9 @@ namespace valheimmod
                 SpecialJump.AddEffects();
                 SpecialTeleport.AddEffects();
                 SpectralArrow.AddEffects();
+                ValhallaDome.AddEffects();
             }
+            // todo: save the effects on player logout and load them on login using PlayerPrefs
         }
     }
 }

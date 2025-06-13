@@ -33,7 +33,7 @@ namespace valheimmod
             None = 0,
             SuperJump,
             SpectralArrow,
-            TurtleDome,
+            ValhallaDome,
             TeleportHome,
         }
 
@@ -42,7 +42,7 @@ namespace valheimmod
             RadialAbility.None,      // 0 (not used)
             RadialAbility.SuperJump, // 1
             RadialAbility.SpectralArrow,  // 2
-            RadialAbility.TurtleDome,       // 3
+            RadialAbility.ValhallaDome,       // 3
             RadialAbility.TeleportHome       // 4
         };
 
@@ -52,7 +52,7 @@ namespace valheimmod
             {
                 RadialAbility.SuperJump => "Super Jump",
                 RadialAbility.SpectralArrow => "Spectral Arrow",
-                RadialAbility.TurtleDome => "Turtle Dome",
+                RadialAbility.ValhallaDome => "Valhalla Dome",
                 RadialAbility.TeleportHome => "Hearth",
                 _ => "None"
             };

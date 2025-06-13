@@ -111,7 +111,7 @@ namespace valheimmod
             SpecialJump.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
             SpecialTeleport.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
             SpectralArrow.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/spectral_arrow.png"));
-            TurtleDome.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/turtle_dome.png"));
+            ValhallaDome.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/turtle_dome.png"));
             int maxOverlayTextures = 3; // Number of textures to load for the overlay
             for (int i = 1; i <= maxOverlayTextures; i++)
             {
@@ -173,6 +173,13 @@ namespace valheimmod
                 {   "spectral_arrow_effect_tooltip", "Your next 3 shots will be spectral arrows."},
                 {   "spectral_arrow_cd_start", "You can not fire anymore spectral arrows right now."},
                 {   "spectral_arrow_cd_stop", "You can now fire spectral arrows."},
+                {   "cd_dome_effect", "Valhalla Dome"},
+                {   "cd_dome_tooltip", ""},
+                {   "cd_domeeffect_start", ""},
+                {   "dome_effect", "Valhalla Dome"},
+                {   "dome_tooltip", "A shield of protection surrounds you."},
+                {   "domeeffect_start", "You feel protected"},
+                {   "domeeffect_stop", "You feel vulnerable"},
             });
         }
 
@@ -281,6 +288,16 @@ namespace valheimmod
                                 currentDay = day;
                             }
                         }
+                    }
+                }
+                if (ValhallaDome.CDSpecialEffect?.StatusEffect != null && ValhallaDome.SpecialEffect?.StatusEffect != null)
+                {
+                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(ValhallaDome.SpecialEffect.StatusEffect.m_nameHash) &&
+                        ValhallaDome.abilityUsed &&
+                        Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
+                    {
+                        ValhallaDome.abilityUsed = false; // Reset the ability used flag
+                        Player.m_localPlayer.m_seman.AddStatusEffect(ValhallaDome.CDSpecialEffect.StatusEffect, true);
                     }
                 }
             }
@@ -587,24 +604,23 @@ namespace valheimmod
             }
         }
         [HarmonyPatch(typeof(Player), "Awake")]
-        public static class Player_Awake_TurtleDomeCleanup_Patch
+        public static class Player_Awake_DomeCleanup_Patch
         {
             static void Postfix(Player __instance)
             {
                 // Only run for the local player
                 if (!__instance.IsPlayer() || __instance == null)
                     return;
-                TurtleDome.LastDomeUID = PlayerPrefs.GetString("TurtleDome_LastDomeUID", "");
-                // Make sure your UID is set somewhere persistent (e.g., TurtleDome.LastDomeUID)
-                if (string.IsNullOrEmpty(valheimmod.TurtleDome.LastDomeUID) ||
-                string.IsNullOrEmpty(TurtleDome.turtledome_uid))
+                ValhallaDome.LastDomeUID = PlayerPrefs.GetString("Dome_LastDomeUID", "");
+                if (string.IsNullOrEmpty(valheimmod.ValhallaDome.LastDomeUID) ||
+                string.IsNullOrEmpty(ValhallaDome.dome_uid))
                 {
-                    Jotunn.Logger.LogInfo("TurtleDome: LastDomeUID is empty, skipping dome cleanup.");
+                    Jotunn.Logger.LogInfo("Dome: LastDomeUID is empty, skipping dome cleanup.");
                     return;
                 }
                 if (ZNetScene.instance == null)
                 {
-                    Jotunn.Logger.LogError("TurtleDome: ZNetScene is null, cannot clean up dome.");
+                    Jotunn.Logger.LogError("Dome: ZNetScene is null, cannot clean up dome.");
                     return;
                 }
                 foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
@@ -612,11 +628,11 @@ namespace valheimmod
                     if (znetView != null && znetView.IsValid())
                     {
                         var zdo = znetView.GetZDO();
-                        if (zdo != null && zdo.GetString(TurtleDome.turtledome_uid, "") == valheimmod.TurtleDome.LastDomeUID)
+                        if (zdo != null && zdo.GetString(ValhallaDome.dome_uid, "") == valheimmod.ValhallaDome.LastDomeUID)
                         {
                             znetView.ClaimOwnership();
                             znetView.Destroy();
-                            Jotunn.Logger.LogInfo("TurtleDome: Destroyed dome on login.");
+                            Jotunn.Logger.LogInfo("Dome: Destroyed dome on login.");
                             break;
                         }
                     }
@@ -625,30 +641,30 @@ namespace valheimmod
         }
 
         [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
-        public static class Logout_TurtleDomeCleanup_Patch
+        public static class Logout_DomeCleanup_Patch
         {
             static void Prefix()
             {
-                Jotunn.Logger.LogInfo("Logout Prefix: Attempting TurtleDome cleanup before menu logout.");
-                valheimmod.TurtleDome.OnPlayerLogout();
+                Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
+                valheimmod.ValhallaDome.OnPlayerLogout();
             }
         }
         [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
-        public static class Quit_TurtleDomeCleanup_Patch
+        public static class Quit_DomeCleanup_Patch
         {
             static void Prefix()
             {
-                Jotunn.Logger.LogInfo("Quit Prefix: Attempting TurtleDome cleanup before menu logout.");
-                valheimmod.TurtleDome.OnPlayerLogout();
+                Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
+                valheimmod.ValhallaDome.OnPlayerLogout();
             }
         }
         [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
-        public static class ZNet_Disconnect_TurtleDomeCleanup_Patch233
+        public static class ZNet_Disconnect_DomeCleanup_Patch233
         {
             static void Prefix()
             {
-                Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting TurtleDome cleanup before disconnect.");
-                valheimmod.TurtleDome.OnPlayerLogout();
+                Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
+                valheimmod.ValhallaDome.OnPlayerLogout();
             }
         }
     }
