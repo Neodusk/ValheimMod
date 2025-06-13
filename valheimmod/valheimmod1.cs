@@ -571,8 +571,6 @@ namespace valheimmod
                     return true;
                 }
 
-                // Or use Postfix if you want to run code after activation
-                // static void Postfix(Player __instance) { ... }
             }
             [HarmonyPatch(typeof(Player), "Awake")]
             class Player_Awake_DayTracker_Patch

@@ -478,6 +478,7 @@ namespace valheimmod
             }
             public class MobOnlyShield : MonoBehaviour
             {
+                private float repelForce = 30f; // Adjust this value to change the force applied to mobs
                 private void OnTriggerEnter(Collider other)
                 {
                     Jotunn.Logger.LogInfo($"MobOnlyShield OnTriggerEnter called for {other.name}");
@@ -486,7 +487,7 @@ namespace valheimmod
                     {
                         Jotunn.Logger.LogInfo($"Repelling mob: {character.name}");
                         Vector3 repelDir = (character.transform.position - transform.position).normalized;
-                        character.m_body?.AddForce(repelDir * 50f, ForceMode.VelocityChange);
+                        character.m_body?.AddForce(repelDir * repelForce, ForceMode.VelocityChange);
 
                     }
                     else if (character != null)
@@ -500,7 +501,7 @@ namespace valheimmod
                     if (character != null && character.IsMonsterFaction(0f))
                     {
                         Vector3 repelDir = (character.transform.position - transform.position).normalized;
-                        character.m_body?.AddForce(repelDir * 50f, ForceMode.VelocityChange); // Use Force for continuous push
+                        character.m_body?.AddForce(repelDir * repelForce, ForceMode.VelocityChange); // Use Force for continuous push
                     }
                 }
             }
