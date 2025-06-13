@@ -444,20 +444,6 @@ namespace valheimmod
                 }
             }
         }
-        // public static IEnumerator DomeCoroutine(Vector3 position, float duration)
-        // {
-        //     float elapsed = 0f;
-        //     while (elapsed < duration)
-        //     {
-        //         GameObject shieldPrefab = ZNetScene.instance.GetPrefab("vfx_shieldgenerator_startup");
-        //         if (shieldPrefab != null)
-        //         {
-        //             UnityEngine.Object.Instantiate(shieldPrefab, position, Quaternion.identity);
-        //         }
-        //         yield return new WaitForSeconds(3f); // Adjust to match the effect's length
-        //         elapsed += 3f;
-        //     }
-        // }
 
         public class TurtleDome
         {
@@ -561,12 +547,12 @@ namespace valheimmod
                             float fudge = 0.3f; // Adjust this value to change the size of the collider relative to the visual radius
                             collider.radius = (visualRadius / scale) * fudge; // Adjust radius based on the scale of the dome
                             domeObj.AddComponent<MobOnlyShield>();
-                            GameObject debugSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                            debugSphere.transform.SetParent(domeObj.transform, false);
-                            debugSphere.transform.localPosition = Vector3.zero;
-                            debugSphere.transform.localScale = Vector3.one * (collider.radius * 2f); // diameter = radius * 2
-                            debugSphere.GetComponent<Collider>().enabled = false; // Disable collision on the debug sphere
-                            debugSphere.GetComponent<Renderer>().material.color = new Color(0, 1, 0, 0.3f); // Green, semi-transparent
+                            // GameObject debugSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                            // debugSphere.transform.SetParent(domeObj.transform, false);
+                            // debugSphere.transform.localPosition = Vector3.zero;
+                            // debugSphere.transform.localScale = Vector3.one * (collider.radius * 2f); // diameter = radius * 2
+                            // debugSphere.GetComponent<Collider>().enabled = false; // Disable collision on the debug sphere
+                            // debugSphere.GetComponent<Renderer>().material.color = new Color(0, 1, 0, 0.3f); // Green, semi-transparent
                         }
                         // Set to a custom layer (make sure this layer exists and is set up in Unity)
                         domeObj.layer = LayerMask.NameToLayer("character");
@@ -576,30 +562,16 @@ namespace valheimmod
                         Jotunn.Logger.LogWarning("ShieldGenerator component not found on the instantiated dome!");
                     }
 
-                    // Destroy the dome after 30 seconds
-                    var timedDestruction = dome.GetComponent<TimedDestruction>();
-                    if (timedDestruction != null)
+                    var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
+                    if (timedDestruction == null)
                     {
+                        timedDestruction = ActiveTurtleDome.AddComponent<TimedDestruction>();
+                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ActiveTurtleDome");
+                    }
                         timedDestruction.m_forceTakeOwnershipAndDestroy = true;
-                        timedDestruction.m_timeout = 30f; // Set the time to 30 seconds
+                        timedDestruction.m_timeout = 30f; // time before destruction
                         timedDestruction.Trigger();
                         Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
-                    }
-                    yield return new WaitForSeconds(30f);
-                    if (dome != null)
-                    {
-                        var znetView = dome.GetComponent<ZNetView>();
-                        if (znetView != null && znetView.IsValid())
-                        {
-                            Jotunn.Logger.LogInfo("Claiming ownership and destroying ZNetView for the dome");
-                            znetView.ClaimOwnership();
-                            znetView.Destroy();
-                        }
-                        else
-                        {
-                            UnityEngine.Object.Destroy(dome);
-                        }
-                    }
                 }
             }
             public static void CallPending()
@@ -613,48 +585,34 @@ namespace valheimmod
                     Call();
                 }
             }
+            
             public static void OnPlayerLogout()
             {
                 Jotunn.Logger.LogInfo($"OnPlayerLogout called. Dome ref: {ActiveTurtleDome}");
                 if (ActiveTurtleDome != null)
                 {
-                    // var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
-                    // if (timedDestruction != null)
-                    // {
-                    //     timedDestruction.m_forceTakeOwnershipAndDestroy = true;
-                    //     Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
-                    // }
-
-                    // var znetView = ActiveTurtleDome.GetComponent<ZNetView>();
-                    // if (znetView != null && znetView.IsValid())
-                    // {
-                    //     znetView.ClaimOwnership();
-                    //     znetView.Destroy();
-                    // }
-                    // else
-                    // {
-                    //     UnityEngine.Object.Destroy(ActiveTurtleDome);
-                    // }
-                    foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
+                    var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
+                    if (timedDestruction == null)
                     {
-                        if (znetView != null && znetView.IsValid())
-                        {
-                            var zdo = znetView.GetZDO();
-                            if (zdo != null && zdo.GetString(turtledome_uid, "") == TurtleDome.LastDomeUID)
-                            {
-                                znetView.ClaimOwnership();
-                                znetView.Destroy();
-                                break; // Only destroy one
-                            }
-                        }
+                        timedDestruction = ActiveTurtleDome.AddComponent<TimedDestruction>();
+                        Jotunn.Logger.LogInfo("Added TimedDestruction component to ActiveTurtleDome");
+                    }
+                    else
+                    {
+                        Jotunn.Logger.LogInfo("TimedDestruction component already exists on ActiveTurtleDome");
+                    }
+                        timedDestruction.m_forceTakeOwnershipAndDestroy = true;
+                        timedDestruction.m_timeout = 0f; // or your desired time
+                        timedDestruction.Trigger();
+                        timedDestruction.DestroyNow();
+                        Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
+                    }
+                else
+                    {
+                        Jotunn.Logger.LogInfo("No active TurtleDome to destroy.");
                     }
                 }
-                else
-                {
-                    Jotunn.Logger.LogInfo("No active TurtleDome to destroy.");
-                }
             }
-        }
         
         public static void UpdateStatusEffectTextures(Hud __instance, List<StatusEffect> statusEffects)
         {

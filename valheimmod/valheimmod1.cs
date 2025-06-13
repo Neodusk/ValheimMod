@@ -625,16 +625,33 @@ namespace valheimmod
                 }
             }
         }
-        
-        [HarmonyPatch(typeof(ZNet), nameof(ZNet.Disconnect))]
-        public static class ZNet_Disconnect_TurtleDomeCleanup_Patch
+
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
+        public static class Logout_TurtleDomeCleanup_Patch
         {
             static void Prefix()
             {
-                Jotunn.Logger.LogInfo("ZNet.Disconnect Prefix: Attempting TurtleDome cleanup before disconnect.");
+                Jotunn.Logger.LogInfo("Logout Prefix: Attempting TurtleDome cleanup before menu logout.");
                 valheimmod.TurtleDome.OnPlayerLogout();
             }
         }
-
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
+        public static class Quit_TurtleDomeCleanup_Patch
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("Quit Prefix: Attempting TurtleDome cleanup before menu logout.");
+                valheimmod.TurtleDome.OnPlayerLogout();
+            }
+        }
+        [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
+        public static class ZNet_Disconnect_TurtleDomeCleanup_Patch233
+        {
+            static void Prefix()
+            {
+                Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting TurtleDome cleanup before disconnect.");
+                valheimmod.TurtleDome.OnPlayerLogout();
+            }
+        }
     }
 }
