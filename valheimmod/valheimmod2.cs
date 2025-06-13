@@ -251,11 +251,15 @@ namespace valheimmod
             // Highlight logic
             for (int i = 0; i < radialButtons.Count; i++)
             {
-                var text = radialButtons[i].GetComponentInChildren<UnityEngine.UI.Text>();
-                bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
-                text.color = highlighted ? Color.yellow : Color.white;
-                if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
-                    radialButtonHighlights[i].SetActive(highlighted);
+                var button = radialButtons[i];
+                if (button != null)
+                {
+                    var text = button.GetComponentInChildren<UnityEngine.UI.Text>();
+                    bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
+                    text.color = highlighted ? Color.yellow : Color.white;
+                    if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
+                        radialButtonHighlights[i].SetActive(highlighted);
+                }
             }
 
             // Click to select

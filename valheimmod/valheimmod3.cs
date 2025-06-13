@@ -463,6 +463,8 @@ namespace valheimmod
         {
             public static Texture2D texture;
             public static GameObject ActiveTurtleDome;
+            public static string LastDomeUID;
+            public static string turtledome_uid = "turtledome_uid";
             public static void Call()
             {
                 if (Player.m_localPlayer == null) return;
@@ -472,6 +474,18 @@ namespace valheimmod
                     Vector3 pos = Player.m_localPlayer.transform.position;
                     Quaternion rot = Quaternion.identity;
                     ActiveTurtleDome = UnityEngine.Object.Instantiate(domePrefab, pos, rot);
+                    var znetView = ActiveTurtleDome.GetComponent<ZNetView>();
+                    if (znetView != null && znetView.IsValid())
+                    {
+                        string uniqueId = System.Guid.NewGuid().ToString();
+                        znetView.GetZDO().Set(turtledome_uid, uniqueId);
+                        // Save this somewhere (e.g., static field) for later lookup
+                        TurtleDome.LastDomeUID = uniqueId;
+                        PlayerPrefs.SetString("TurtleDome_LastDomeUID", uniqueId);
+                        PlayerPrefs.Save();
+
+                        Jotunn.Logger.LogInfo($"TurtleDome created with UID: {uniqueId}");
+                    }
                     // Start a coroutine to set up the shield after one frame
                     Player.m_localPlayer.StartCoroutine(SetupShieldNextFrame(ActiveTurtleDome));
                 }
@@ -507,11 +521,12 @@ namespace valheimmod
             private static IEnumerator SetupShieldNextFrame(GameObject dome)
             {
                 yield return null; // Wait one frame
-
+                
                 var shieldGen = dome.GetComponent<ShieldGenerator>();
                 if (shieldGen != null)
                 {
                     shieldGen.m_offWhenNoFuel = false;
+                    shieldGen.m_minShieldRadius = 4f;
                     shieldGen.m_maxShieldRadius = 4f; // Set the desired shield radius
                     shieldGen.SetFuel(shieldGen.m_maxFuel);
                     shieldGen.UpdateShield();
@@ -538,26 +553,21 @@ namespace valheimmod
                         if (collider == null)
                         {
                             collider = domeObj.AddComponent<SphereCollider>();
-                            domeObj.AddComponent<MobOnlyShield>();
                             collider.isTrigger = true; // Use trigger for custom logic
-                            collider.radius = shieldGen.m_maxShieldRadius; // Adjust as needed
+                            // collider.radius = shieldGen.m_maxShieldRadius; // Adjust as needed
+                            float visualRadius = shieldGen.m_maxShieldRadius;
+                            Jotunn.Logger.LogInfo($"Dome scale: {domeObj.transform.lossyScale}, collider.radius: {collider.radius}, visualRadius: {visualRadius}");
+                            float scale = domeObj.transform.lossyScale.x; // Use .x, .y, or .z if non-uniform
+                            float fudge = 0.3f; // Adjust this value to change the size of the collider relative to the visual radius
+                            collider.radius = (visualRadius / scale) * fudge; // Adjust radius based on the scale of the dome
+                            domeObj.AddComponent<MobOnlyShield>();
+                            GameObject debugSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                            debugSphere.transform.SetParent(domeObj.transform, false);
+                            debugSphere.transform.localPosition = Vector3.zero;
+                            debugSphere.transform.localScale = Vector3.one * (collider.radius * 2f); // diameter = radius * 2
+                            debugSphere.GetComponent<Collider>().enabled = false; // Disable collision on the debug sphere
+                            debugSphere.GetComponent<Renderer>().material.color = new Color(0, 1, 0, 0.3f); // Green, semi-transparent
                         }
-                        float radius = shieldGen.m_maxShieldRadius;
-                        Vector3 center = domeObj.transform.position;
-                        // foreach (Character character in Character.GetAllCharacters())
-                        // {
-                        //     Jotunn.Logger.LogInfo($"Checking character {character.name} for dome collision, attemoting to kill");
-                        //     if (character != null && character.IsMonsterFaction(0f) && Vector3.Distance(character.transform.position, center) <= radius)
-                        //     {
-                        //         Jotunn.Logger.LogInfo($"Killing mob already inside dome: {character.name}");
-                        //         HitData hit = new HitData();
-                        //         hit.m_damage.m_damage = 99999f;
-                        //         hit.m_point = character.transform.position;
-                        //         hit.m_dir = (character.transform.position - center).normalized;
-                        //         hit.m_attacker = Player.m_localPlayer ? Player.m_localPlayer.GetZDOID() : ZDOID.None;
-                        //         character.Damage(hit);
-                        //     }
-                        // }
                         // Set to a custom layer (make sure this layer exists and is set up in Unity)
                         domeObj.layer = LayerMask.NameToLayer("character");
                     }
@@ -567,10 +577,28 @@ namespace valheimmod
                     }
 
                     // Destroy the dome after 30 seconds
+                    var timedDestruction = dome.GetComponent<TimedDestruction>();
+                    if (timedDestruction != null)
+                    {
+                        timedDestruction.m_forceTakeOwnershipAndDestroy = true;
+                        timedDestruction.m_timeout = 30f; // Set the time to 30 seconds
+                        timedDestruction.Trigger();
+                        Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
+                    }
                     yield return new WaitForSeconds(30f);
                     if (dome != null)
                     {
-                        UnityEngine.Object.Destroy(dome);
+                        var znetView = dome.GetComponent<ZNetView>();
+                        if (znetView != null && znetView.IsValid())
+                        {
+                            Jotunn.Logger.LogInfo("Claiming ownership and destroying ZNetView for the dome");
+                            znetView.ClaimOwnership();
+                            znetView.Destroy();
+                        }
+                        else
+                        {
+                            UnityEngine.Object.Destroy(dome);
+                        }
                     }
                 }
             }
@@ -590,9 +618,36 @@ namespace valheimmod
                 Jotunn.Logger.LogInfo($"OnPlayerLogout called. Dome ref: {ActiveTurtleDome}");
                 if (ActiveTurtleDome != null)
                 {
-                    UnityEngine.Object.Destroy(ActiveTurtleDome);
-                    Jotunn.Logger.LogInfo("TurtleDome destroyed on logout/quit.");
-                    ActiveTurtleDome = null;
+                    // var timedDestruction = ActiveTurtleDome.GetComponent<TimedDestruction>();
+                    // if (timedDestruction != null)
+                    // {
+                    //     timedDestruction.m_forceTakeOwnershipAndDestroy = true;
+                    //     Jotunn.Logger.LogInfo("Set m_forceTakeOwnershipAndDestroy = true on TimedDestruction");
+                    // }
+
+                    // var znetView = ActiveTurtleDome.GetComponent<ZNetView>();
+                    // if (znetView != null && znetView.IsValid())
+                    // {
+                    //     znetView.ClaimOwnership();
+                    //     znetView.Destroy();
+                    // }
+                    // else
+                    // {
+                    //     UnityEngine.Object.Destroy(ActiveTurtleDome);
+                    // }
+                    foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
+                    {
+                        if (znetView != null && znetView.IsValid())
+                        {
+                            var zdo = znetView.GetZDO();
+                            if (zdo != null && zdo.GetString(turtledome_uid, "") == TurtleDome.LastDomeUID)
+                            {
+                                znetView.ClaimOwnership();
+                                znetView.Destroy();
+                                break; // Only destroy one
+                            }
+                        }
+                    }
                 }
                 else
                 {

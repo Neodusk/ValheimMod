@@ -266,17 +266,20 @@ namespace valheimmod
                 }
                 if (SpecialTeleport.SpecialEffect?.StatusEffect != null)
                 {
-                    int day = EnvMan.instance.GetDay();
-                    if (currentDay != day)
+                    if (EnvMan.instance != null)
                     {
-                        if (Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
+                        int day = EnvMan.instance.GetDay();
+                        if (currentDay != day)
                         {
-                            if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash))
+                            if (Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
                             {
-                                Player.m_localPlayer.m_seman.RemoveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash, false);
+                                if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash))
+                                {
+                                    Player.m_localPlayer.m_seman.RemoveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash, false);
 
+                                }
+                                currentDay = day;
                             }
-                            currentDay = day;
                         }
                     }
                 }
@@ -585,41 +588,53 @@ namespace valheimmod
                 }
             }
         }
-        [HarmonyPatch(typeof(Game), nameof(Game.Logout))]
-        public static class Game_Logout_Patch
+        [HarmonyPatch(typeof(Player), "Awake")]
+        public static class Player_Awake_TurtleDomeCleanup_Patch
+        {
+            static void Postfix(Player __instance)
+            {
+                // Only run for the local player
+                if (!__instance.IsPlayer() || __instance == null)
+                    return;
+                TurtleDome.LastDomeUID = PlayerPrefs.GetString("TurtleDome_LastDomeUID", "");
+                // Make sure your UID is set somewhere persistent (e.g., TurtleDome.LastDomeUID)
+                if (string.IsNullOrEmpty(valheimmod.TurtleDome.LastDomeUID) ||
+                string.IsNullOrEmpty(TurtleDome.turtledome_uid))
+                {
+                    Jotunn.Logger.LogInfo("TurtleDome: LastDomeUID is empty, skipping dome cleanup.");
+                    return;
+                }
+                if (ZNetScene.instance == null)
+                {
+                    Jotunn.Logger.LogError("TurtleDome: ZNetScene is null, cannot clean up dome.");
+                    return;
+                }
+                foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
+                {
+                    if (znetView != null && znetView.IsValid())
+                    {
+                        var zdo = znetView.GetZDO();
+                        if (zdo != null && zdo.GetString(TurtleDome.turtledome_uid, "") == valheimmod.TurtleDome.LastDomeUID)
+                        {
+                            znetView.ClaimOwnership();
+                            znetView.Destroy();
+                            Jotunn.Logger.LogInfo("TurtleDome: Destroyed dome on login.");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        [HarmonyPatch(typeof(ZNet), nameof(ZNet.Disconnect))]
+        public static class ZNet_Disconnect_TurtleDomeCleanup_Patch
         {
             static void Prefix()
             {
-                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
-                TurtleDome.OnPlayerLogout();
+                Jotunn.Logger.LogInfo("ZNet.Disconnect Prefix: Attempting TurtleDome cleanup before disconnect.");
+                valheimmod.TurtleDome.OnPlayerLogout();
             }
         }
-        [HarmonyPatch(typeof(Game), nameof(Game.OnApplicationQuit))]
-        public static class Game_Quit_Patch
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
-                TurtleDome.OnPlayerLogout();
-            }
-        }
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
-        public static class Menu_QuitYes_Patch
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
-                TurtleDome.OnPlayerLogout();
-            }
-        }
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
-        public static class Menu_LogoutYes_Patch
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("Game.Logout called, cleaning up TurtleDome.");
-                TurtleDome.OnPlayerLogout();
-            }
-        }
+
     }
 }
