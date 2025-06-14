@@ -640,37 +640,35 @@ namespace valheimmod
                         }
                     }
                 }
-
-
-                [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
-                public static class Logout_Patch
+            }
+            [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
+            public static class Logout_Patch
+            {
+                static void Prefix()
                 {
-                    static void Prefix()
-                    {
-                        Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
-                        valheimmod.ValhallaDome_.OnPlayerLogout();
-                        ModAbilities.Effects.Save(); // Save effects before logout
-                    }
+                    Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
+                    valheimmod.ValhallaDome_.OnPlayerLogout();
+                    ModAbilities.Effects.Save(); // Save effects before logout
                 }
-                [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
-                public static class Quit_Patch
+            }
+            [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
+            public static class Quit_Patch
+            {
+                static void Prefix()
                 {
-                    static void Prefix()
-                    {
-                        Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
-                        valheimmod.ValhallaDome_.OnPlayerLogout();
-                        ModAbilities.Effects.Save(); // Save effects before logout
-                    }
+                    Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
+                    valheimmod.ValhallaDome_.OnPlayerLogout();
+                    ModAbilities.Effects.Save(); // Save effects before logout
                 }
-                [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
-                public static class ZNet_Disconnect_Cleanup_Patch
+            }
+            [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
+            public static class ZNet_Disconnect_Cleanup_Patch
+            {
+                static void Prefix()
                 {
-                    static void Prefix()
-                    {
-                        Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
-                        valheimmod.ValhallaDome_.OnPlayerLogout();
-                        ModAbilities.Effects.Save(); // Save effects before logout
-                    }
+                    Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
+                    valheimmod.ValhallaDome_.OnPlayerLogout();
+                    ModAbilities.Effects.Save(); // Save effects before logout
                 }
             }
         }

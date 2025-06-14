@@ -123,7 +123,6 @@ namespace valheimmod
                             for (int j = 0; j < statusEffectsList.Count; j++)
                             {
                                 StatusEffect statusEffect = statusEffectsList[j];
-                                // ability?.updateDuration(durationDict);
                                 ability?.updateTexture(__instance, statusEffect, j);
                             }
                         }
