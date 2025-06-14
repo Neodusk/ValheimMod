@@ -108,24 +108,24 @@ namespace valheimmod
             string modPath = Path.GetDirectoryName(Info.Location);
 
             // Load texture from filesystem
-            SpecialJump.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
-            SpecialTeleport.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
-            SpectralArrow.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/spectral_arrow.png"));
-            ValhallaDome.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/turtle_dome.png"));
+            SpecialJump_.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/specialjump.png"));
+            SpecialTeleport_.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/teleport.png"));
+            SpectralArrow_.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/spectral_arrow.png"));
+            ValhallaDome_.texture = AssetUtils.LoadTexture(Path.Combine(modPath, "Assets/turtle_dome.png"));
             int maxOverlayTextures = 3; // Number of textures to load for the overlay
             for (int i = 1; i <= maxOverlayTextures; i++)
             {
                 var numberTexture = AssetUtils.LoadTexture(Path.Combine(modPath, $"Assets/spectral_arrow{i}.png"));
                 if (numberTexture != null)
                 {
-                    SpectralArrow.textures[i - 1] = Sprite.Create(numberTexture, new Rect(0, 0, numberTexture.width, numberTexture.height), new Vector2(0.5f, 0.5f));
+                    SpectralArrow_.textures[i - 1] = Sprite.Create(numberTexture, new Rect(0, 0, numberTexture.width, numberTexture.height), new Vector2(0.5f, 0.5f));
                 }
                 else
                 {
                     Jotunn.Logger.LogError($"Failed to load number texture: {i}");
                 }
             }
-            if (SpecialJump.texture == null)
+            if (SpecialJump_.texture == null)
             {
                 Jotunn.Logger.LogError("Failed to load SpecialJumpTexture! Check if the PNG is valid and not corrupted.");
             }
@@ -193,7 +193,7 @@ namespace valheimmod
             LoadAssets();
             AddLocs();
             AddInputs();
-            PrefabManager.OnPrefabsRegistered += ModAbilitiesEffects.AddStatusEffects;
+            PrefabManager.OnPrefabsRegistered += ModAbilities.Effects.Register;
 
 
             // To learn more about Jotunn's features, go to
@@ -271,7 +271,7 @@ namespace valheimmod
                 {
                     ModAbilities.CallSpecialAbilities();
                 }
-                if (SpecialTeleport.SpecialEffect?.StatusEffect != null)
+                if (SpecialTeleport_?.SpecialEffect?.StatusEffect != null)
                 {
                     if (EnvMan.instance != null)
                     {
@@ -280,9 +280,9 @@ namespace valheimmod
                         {
                             if (Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
                             {
-                                if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash))
+                                if (Player.m_localPlayer.m_seman.HaveStatusEffect(SpecialTeleport_.SpecialEffect.StatusEffect.m_nameHash))
                                 {
-                                    Player.m_localPlayer.m_seman.RemoveStatusEffect(SpecialTeleport.SpecialEffect.StatusEffect.m_nameHash, false);
+                                    Player.m_localPlayer.m_seman.RemoveStatusEffect(SpecialTeleport_.SpecialEffect.StatusEffect.m_nameHash, false);
 
                                 }
                                 currentDay = day;
@@ -290,14 +290,17 @@ namespace valheimmod
                         }
                     }
                 }
-                if (ValhallaDome.CDSpecialEffect?.StatusEffect != null && ValhallaDome.SpecialEffect?.StatusEffect != null)
+                if (ValhallaDome_?.SpecialCDEffect?.StatusEffect != null && ValhallaDome_.SpecialEffect?.StatusEffect != null)
                 {
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect(ValhallaDome.SpecialEffect.StatusEffect.m_nameHash) &&
-                        ValhallaDome.abilityUsed &&
-                        Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
+                    if (Player.m_localPlayer != null)
                     {
-                        ValhallaDome.abilityUsed = false; // Reset the ability used flag
-                        Player.m_localPlayer.m_seman.AddStatusEffect(ValhallaDome.CDSpecialEffect.StatusEffect, true);
+                        if (!Player.m_localPlayer.m_seman.HaveStatusEffect(ValhallaDome_.SpecialEffect.StatusEffect.m_nameHash) &&
+                            ValhallaDome_.abilityUsed &&
+                            Player.m_localPlayer != null && Player.m_localPlayer.IsPlayer())
+                        {
+                            ValhallaDome_.abilityUsed = false; // Reset the ability used flag
+                            Player.m_localPlayer.m_seman.AddStatusEffect(ValhallaDome_.SpecialCDEffect.StatusEffect, true);
+                        }
                     }
                 }
             }
@@ -318,21 +321,21 @@ namespace valheimmod
                     bool specialJump = false;
                     if (Player.m_localPlayer != null && Player.m_localPlayer == __instance)
                     {
-                        specialJump = SpecialJump.Triggered;
+                        specialJump = SpecialJump_.Triggered;
                     }
                     JumpState.SpecialJumpActive[__instance] = specialJump;
                     Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
                     if (specialJump)
                     {
                         Jotunn.Logger.LogInfo("Jumped with special jump key");
-                        __instance.m_jumpForce = SpecialJump.specialForce;
+                        __instance.m_jumpForce = SpecialJump_.specialForce;
                     }
                     else
                     {
                         Jotunn.Logger.LogInfo("Jumped with default jump key");
-                        __instance.m_jumpForce = SpecialJump.defaultForce; // Default jump force
+                        __instance.m_jumpForce = SpecialJump_.defaultForce; // Default jump force
                     }
-                    //valheimmod.SpecialJump.Triggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
+                    //valheimmod.SpecialJump_.Triggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
                 }
                 bool s2;
                 s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
@@ -401,270 +404,274 @@ namespace valheimmod
                 {
                     damage = 0f;
                     Jotunn.Logger.LogInfo("Fall damage prevented by patch!");
-                    SpecialJump.Triggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
+                    SpecialJump_.Triggered = false; // Reset the flag here instead of in jump to prevent pre-emptive fall damage 
 
                 }
-                // TODO: Player will still take fall damage if they spam the jump button even in the air 
             }
-        }
 
 
-        [HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
-        class StatusEffect_Update_Patch
-        {
-            private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
-            private static void SpecialJumpSEPatch(StatusEffect __instance, Character ___m_character)
+            [HarmonyPatch(typeof(StatusEffect), "UpdateStatusEffect")]
+            class StatusEffect_Update_Patch
             {
-                if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
+                private static Dictionary<Character, float> lastVfxTime = new Dictionary<Character, float>();
+                private static void SpecialJumpSEPatch(StatusEffect __instance, Character ___m_character)
                 {
-                    // Only spawn if enough time has passed (e.g., 1 second)
-                    float now = Time.time;
-                    if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
+                    if (__instance.name == "PendingSpecialJumpEffect" && ___m_character != null && ___m_character.IsPlayer())
                     {
-                        lastVfxTime[___m_character] = now;
-
-                        Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
-                        var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
-                        if (leafPuffPrefab != null)
+                        // Only spawn if enough time has passed (e.g., 1 second)
+                        float now = Time.time;
+                        if (!lastVfxTime.TryGetValue(___m_character, out float lastTime) || now - lastTime > 1f)
                         {
-                            var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
-                            vfx.transform.SetParent(___m_character.transform);
+                            lastVfxTime[___m_character] = now;
+
+                            Jotunn.Logger.LogInfo("Pending special jump effect is active, spawning VFX");
+                            var leafPuffPrefab = ZNetScene.instance.GetPrefab("vfx_bush_leaf_puff");
+                            if (leafPuffPrefab != null)
+                            {
+                                var vfx = UnityEngine.Object.Instantiate(leafPuffPrefab, ___m_character.transform.position, Quaternion.identity);
+                                vfx.transform.SetParent(___m_character.transform);
+                            }
                         }
                     }
                 }
-            }
-            static void Postfix(StatusEffect __instance, Character ___m_character)
-            {
-                SpecialJumpSEPatch(__instance, ___m_character);
-            }
-        }
-
-        [HarmonyPatch(typeof(Player), "Update")]
-        class Player_CameraBlock_RadialMenu_Patch
-        {
-            static bool wasRadialMenuOpen = false;
-
-            static void Prefix(Player __instance)
-            {
-                if (RadialMenuIsOpen)
+                static void Postfix(StatusEffect __instance, Character ___m_character)
                 {
-                    if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
-                    {
-                        ZInput.instance.m_mouseDelta.Disable();
-                    }
-                    wasRadialMenuOpen = true;
-                }
-                else if (wasRadialMenuOpen)
-                {
-                    // Re-enable mouse look when menu closes
-                    if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
-                    {
-                        ZInput.instance.m_mouseDelta.Enable();
-                    }
-                    wasRadialMenuOpen = false;
-                }
-            }
-        }
-
-        [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
-        class Player_AttackInput_RadialBlock_Patch
-        {
-            static bool Prefix(Player __instance, float dt)
-            {
-                if (radialMenuInstance != null && radialMenuInstance.activeSelf)
-                {
-                    return false;
-                }
-                return true;
-            }
-        }
-
-        [HarmonyPatch(typeof(Attack), "ProjectileAttackTriggered")]
-        class Player_ProjectileAttackTriggered_SpectralArrow_Patch
-        {
-            static void Postfix(Attack __instance)
-            {
-                var character = __instance.m_character as Player;
-                if (character == null)
-                    return;
-
-                if (!(character.m_seman?.HaveStatusEffect(valheimmod.SpectralArrow.SpecialEffect.StatusEffect.m_nameHash) ?? false))
-                    return;
-
-                var weapon = character.GetCurrentWeapon();
-                if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
-                {
-                    // Track shots fired
-                    SpectralArrow.ShotsFired[character]++;
-                    Jotunn.Logger.LogInfo($"Spectral Arrow: {character.m_name} has fired {SpectralArrow.ShotsFired[character]} shots.");
-                }
-            }
-        }
-        [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
-        class Player_AttackInput_Bow_Patch
-        {
-            static void Prefix(Player __instance, float dt)
-            {
-                // Only proceed if player has the pending spectral arrow effect
-                if (!(__instance.m_seman?.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash) ?? false))
-                    return;
-
-                var weapon = __instance.GetCurrentWeapon();
-                if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
-                {
-                    if (!__instance.m_seman.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash))
-                    {
-                        SpectralArrow.defaultVelocity = weapon.m_shared.m_attack.m_projectileVel;
-                        Jotunn.Logger.LogInfo($"Default arrow velocity set to: {SpectralArrow.defaultVelocity}");
-                    }
-                    // Store previous skill if not already stored
-                    if (!SpectralArrow.PreviousSkill.ContainsKey(__instance))
-                    {
-                        Skills.Skill defaultSkill = __instance.m_skills.GetSkill(Skills.SkillType.Bows);
-                        SpectralArrow.PreviousSkill[__instance] = defaultSkill.m_level;
-                        // Boost skill
-                        __instance.m_skills.GetSkill(Skills.SkillType.Bows).m_level = 100f; // Set to desired fast value
-
-                    }
-
-                    // Boost arrow velocity (set on the weapon for this shot)
-                    weapon.m_shared.m_attack.m_projectileVel = SpectralArrow.specialVelocity; // Set to desired fast value
-
-                    // Track shots fired
-                    if (!SpectralArrow.ShotsFired.ContainsKey(__instance))
-                        SpectralArrow.ShotsFired[__instance] = 0;
-
-                    // After 3 shots, revert skill and velocity, remove effect
-                    if ((SpectralArrow.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(SpectralArrow.SpecialEffect.StatusEffect.m_nameHash))
-                    {
-                        Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {SpectralArrow.ShotsFired[__instance]} shots, reverting skill and velocity.");
-                        SpectralArrow.Cancel(__instance, weapon);
-
-                        Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
-                    }
+                    SpecialJumpSEPatch(__instance, ___m_character);
                 }
             }
 
-            [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
-            class Hud_InRadial_RadialMenu_Patch
+            [HarmonyPatch(typeof(Player), "Update")]
+            class Player_CameraBlock_RadialMenu_Patch
             {
-                static void Postfix(ref bool __result)
+                static bool wasRadialMenuOpen = false;
+
+                static void Prefix(Player __instance)
                 {
                     if (RadialMenuIsOpen)
                     {
-                        __result = true;
+                        if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                        {
+                            ZInput.instance.m_mouseDelta.Disable();
+                        }
+                        wasRadialMenuOpen = true;
+                    }
+                    else if (wasRadialMenuOpen)
+                    {
+                        // Re-enable mouse look when menu closes
+                        if (ZInput.instance != null && ZInput.instance.m_mouseDelta != null)
+                        {
+                            ZInput.instance.m_mouseDelta.Enable();
+                        }
+                        wasRadialMenuOpen = false;
                     }
                 }
             }
-            [HarmonyPatch(typeof(Hud), "UpdateStatusEffects")]
-            class Hud_UpdateStatusEffects_Patch
-            {
-                static void Postfix(Hud __instance, List<StatusEffect> statusEffects)
-                {
-                    UpdateStatusEffectTextures(__instance, statusEffects);
-                }
-            }
 
-            [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
-            class Player_UseGuardianPower_Patch
+            [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
+            class Player_AttackInput_RadialBlock_Patch
             {
-                static bool Prefix(Player __instance)
+                static bool Prefix(Player __instance, float dt)
                 {
-                    if (ZInput.IsGamepadActive())
+                    if (radialMenuInstance != null && radialMenuInstance.activeSelf)
                     {
-                        if (!allowForsakenPower)
-                        {
-                            Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
-                            // Prevent the guardian power from being used
-                            return false;
-                        }
-                        else
-                        {
-                            Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
-                            // allowForsakenPower = false; // Reset the flag after use
-                            return true;
-                        }
+                        return false;
                     }
                     return true;
                 }
-
             }
-            [HarmonyPatch(typeof(Player), "Awake")]
-            class Player_Awake_DayTracker_Patch
+
+            [HarmonyPatch(typeof(Attack), "ProjectileAttackTriggered")]
+            class Player_ProjectileAttackTriggered_SpectralArrow_Patch
             {
-                static void Postfix(Player __instance)
+                static void Postfix(Attack __instance)
                 {
-                    if (__instance.IsPlayer())
+                    var character = __instance.m_character as Player;
+                    if (character == null)
+                        return;
+
+                    if (!(character.m_seman?.HaveStatusEffect(valheimmod.SpectralArrow_.SpecialEffect.StatusEffect.m_nameHash) ?? false))
+                        return;
+
+                    var weapon = character.GetCurrentWeapon();
+                    if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
                     {
-                        int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
-                        currentDay = day;
-                        Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
+                        // Track shots fired
+                        SpectralArrow_.ShotsFired[character]++;
+                        Jotunn.Logger.LogInfo($"Spectral Arrow: {character.m_name} has fired {SpectralArrow_.ShotsFired[character]} shots.");
                     }
                 }
             }
-        }
-        [HarmonyPatch(typeof(Player), "Awake")]
-        public static class Player_Awake_DomeCleanup_Patch
-        {
-            static void Postfix(Player __instance)
+            [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
+            class Player_AttackInput_Bow_Patch
             {
-                // Only run for the local player
-                if (!__instance.IsPlayer() || __instance == null)
-                    return;
-                ValhallaDome.LastDomeUID = PlayerPrefs.GetString("Dome_LastDomeUID", "");
-                if (string.IsNullOrEmpty(valheimmod.ValhallaDome.LastDomeUID) ||
-                string.IsNullOrEmpty(ValhallaDome.dome_uid))
+                static void Prefix(Player __instance, float dt)
                 {
-                    Jotunn.Logger.LogInfo("Dome: LastDomeUID is empty, skipping dome cleanup.");
-                    return;
-                }
-                if (ZNetScene.instance == null)
-                {
-                    Jotunn.Logger.LogError("Dome: ZNetScene is null, cannot clean up dome.");
-                    return;
-                }
-                foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
-                {
-                    if (znetView != null && znetView.IsValid())
+                    // Only proceed if player has the pending spectral arrow effect
+                    if (!(__instance.m_seman?.HaveStatusEffect(SpectralArrow_.SpecialEffect.StatusEffect.m_nameHash) ?? false))
+                        return;
+
+                    var weapon = __instance.GetCurrentWeapon();
+                    if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
                     {
-                        var zdo = znetView.GetZDO();
-                        if (zdo != null && zdo.GetString(ValhallaDome.dome_uid, "") == valheimmod.ValhallaDome.LastDomeUID)
+                        if (!__instance.m_seman.HaveStatusEffect(SpectralArrow_.SpecialEffect.StatusEffect.m_nameHash))
                         {
-                            znetView.ClaimOwnership();
-                            znetView.Destroy();
-                            Jotunn.Logger.LogInfo("Dome: Destroyed dome on login.");
-                            break;
+                            SpectralArrow_.defaultVelocity = weapon.m_shared.m_attack.m_projectileVel;
+                            Jotunn.Logger.LogInfo($"Default arrow velocity set to: {SpectralArrow_.defaultVelocity}");
+                        }
+                        // Store previous skill if not already stored
+                        if (!SpectralArrow_.PreviousSkill.ContainsKey(__instance))
+                        {
+                            Skills.Skill defaultSkill = __instance.m_skills.GetSkill(Skills.SkillType.Bows);
+                            SpectralArrow_.PreviousSkill[__instance] = defaultSkill.m_level;
+                            // Boost skill
+                            __instance.m_skills.GetSkill(Skills.SkillType.Bows).m_level = 100f; // Set to desired fast value
+
+                        }
+
+                        // Boost arrow velocity (set on the weapon for this shot)
+                        weapon.m_shared.m_attack.m_projectileVel = SpectralArrow_.specialVelocity; // Set to desired fast value
+
+                        // Track shots fired
+                        if (!SpectralArrow_.ShotsFired.ContainsKey(__instance))
+                            SpectralArrow_.ShotsFired[__instance] = 0;
+
+                        // After 3 shots, revert skill and velocity, remove effect
+                        if ((SpectralArrow_.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(SpectralArrow_.SpecialEffect.StatusEffect.m_nameHash))
+                        {
+                            Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {SpectralArrow_.ShotsFired[__instance]} shots, reverting skill and velocity.");
+                            SpectralArrow_.Cancel(__instance, weapon);
+
+                            Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
+                        }
+                    }
+                }
+
+                [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
+                class Hud_InRadial_RadialMenu_Patch
+                {
+                    static void Postfix(ref bool __result)
+                    {
+                        if (RadialMenuIsOpen)
+                        {
+                            __result = true;
+                        }
+                    }
+                }
+                [HarmonyPatch(typeof(Hud), "UpdateStatusEffects")]
+                class Hud_UpdateStatusEffects_Patch
+                {
+                    static void Postfix(Hud __instance, List<StatusEffect> statusEffects)
+                    {
+
+                        ModAbilities.Effects.UpdateStatusEffect(__instance, statusEffects);
+                    }
+                }
+
+                [HarmonyPatch(typeof(Player), nameof(Player.StartGuardianPower))]
+                class Player_UseGuardianPower_Patch
+                {
+                    static bool Prefix(Player __instance)
+                    {
+                        if (ZInput.IsGamepadActive())
+                        {
+                            if (!allowForsakenPower)
+                            {
+                                Jotunn.Logger.LogInfo("Forsaken power use blocked by radial menu");
+                                // Prevent the guardian power from being used
+                                return false;
+                            }
+                            else
+                            {
+                                Jotunn.Logger.LogInfo("Forsaken power use allowed by radial menu");
+                                // allowForsakenPower = false; // Reset the flag after use
+                                return true;
+                            }
+                        }
+                        return true;
+                    }
+
+                }
+                [HarmonyPatch(typeof(Player), "Awake")]
+                class Player_Awake_DayTracker_Patch
+                {
+                    static void Postfix(Player __instance)
+                    {
+                        if (__instance.IsPlayer())
+                        {
+                            int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
+                            currentDay = day;
+                            Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
                         }
                     }
                 }
             }
-        }
+            [HarmonyPatch(typeof(Player), "Awake")]
+            public static class Player_Awake_Cleanup_Patch
+            {
+                static void Postfix(Player __instance)
+                {
+                    // Only run for the local player
+                    if (!__instance.IsPlayer() || __instance == null)
+                        return;
+                    ValhallaDome_.LastDomeUID = PlayerPrefs.GetString("Dome_LastDomeUID", "");
+                    if (string.IsNullOrEmpty(valheimmod.ValhallaDome_.LastDomeUID) ||
+                    string.IsNullOrEmpty(ValhallaDome_.dome_uid))
+                    {
+                        Jotunn.Logger.LogInfo("Dome: LastDomeUID is empty, skipping dome cleanup.");
+                        return;
+                    }
+                    if (ZNetScene.instance == null)
+                    {
+                        Jotunn.Logger.LogWarning("Dome: ZNetScene is null, cannot clean up dome.");
+                        return;
+                    }
+                    foreach (ZNetView znetView in ZNetScene.instance.m_instances.Values)
+                    {
+                        if (znetView != null && znetView.IsValid())
+                        {
+                            var zdo = znetView.GetZDO();
+                            if (zdo != null && zdo.GetString(ValhallaDome_.dome_uid, "") == valheimmod.ValhallaDome_.LastDomeUID)
+                            {
+                                znetView.ClaimOwnership();
+                                znetView.Destroy();
+                                Jotunn.Logger.LogInfo("Dome: Destroyed dome on login.");
+                                break;
+                            }
+                        }
+                    }
+                }
 
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
-        public static class Logout_DomeCleanup_Patch
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
-                valheimmod.ValhallaDome.OnPlayerLogout();
-            }
-        }
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
-        public static class Quit_DomeCleanup_Patch
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
-                valheimmod.ValhallaDome.OnPlayerLogout();
-            }
-        }
-        [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
-        public static class ZNet_Disconnect_DomeCleanup_Patch233
-        {
-            static void Prefix()
-            {
-                Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
-                valheimmod.ValhallaDome.OnPlayerLogout();
+
+                [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
+                public static class Logout_Patch
+                {
+                    static void Prefix()
+                    {
+                        Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
+                        valheimmod.ValhallaDome_.OnPlayerLogout();
+                        ModAbilities.Effects.Save(); // Save effects before logout
+                    }
+                }
+                [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
+                public static class Quit_Patch
+                {
+                    static void Prefix()
+                    {
+                        Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
+                        valheimmod.ValhallaDome_.OnPlayerLogout();
+                        ModAbilities.Effects.Save(); // Save effects before logout
+                    }
+                }
+                [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
+                public static class ZNet_Disconnect_Cleanup_Patch
+                {
+                    static void Prefix()
+                    {
+                        Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
+                        valheimmod.ValhallaDome_.OnPlayerLogout();
+                        ModAbilities.Effects.Save(); // Save effects before logout
+                    }
+                }
             }
         }
     }
