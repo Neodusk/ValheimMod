@@ -90,6 +90,13 @@ namespace valheimmod
                         // Save the status effect name and whether it is active
                         Jotunn.Logger.LogInfo($"Saving status effect: {effect.m_name} with hash {effect.m_nameHash}");
                         string remainingTime = effect.GetRemaningTime().ToString();
+                        if (effect.m_name == "TeleportEffect" && Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash))
+                        {
+                            // If the teleport effect is active, we save the remaining time
+                            remainingTime = "1";
+                        }
+                        string day = EnvMan.instance.GetDay().ToString();
+                        PlayerPrefs.SetString("effect_day", day);
                         Jotunn.Logger.LogInfo($"Saving status effect: {effect.m_name} with remaining time: {remainingTime}");
                         PlayerPrefs.SetString(effect.m_name, Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash) ? remainingTime : "0");
                     }
@@ -427,9 +434,15 @@ namespace valheimmod
                             float time;
                             if (float.TryParse(remainingTime, out time) && time > 0)
                             {
-                                Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {time}");
-                                SpecialEffect.StatusEffect.m_time = time;
-                                Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
+                                string day_str = PlayerPrefs.GetString("effect_day");
+                                int day = day_str != null ? int.Parse(day_str) : 0;
+                                // don't re-add the duration if there is a new day since last
+                                if (currentDay <= day)
+                                {
+                                    Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {time}");
+                                    Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
+                                }
+                                    // don't set a time update as the ttl is handled by the game days
                             }
                         }
 

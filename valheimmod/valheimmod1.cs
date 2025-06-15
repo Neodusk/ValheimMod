@@ -601,6 +601,7 @@ namespace valheimmod
                             int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
                             currentDay = day;
                             Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
+                            
                         }
                     }
                 }
@@ -613,6 +614,7 @@ namespace valheimmod
                     // Only run for the local player
                     if (!__instance.IsPlayer() || __instance == null)
                         return;
+
                     ValhallaDome_.LastDomeUID = PlayerPrefs.GetString("Dome_LastDomeUID", "");
                     if (string.IsNullOrEmpty(valheimmod.ValhallaDome_.LastDomeUID) ||
                     string.IsNullOrEmpty(ValhallaDome_.dome_uid))
@@ -641,6 +643,7 @@ namespace valheimmod
                     }
                 }
             }
+
             [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
             public static class Logout_Patch
             {
