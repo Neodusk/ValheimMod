@@ -30,25 +30,54 @@ namespace valheimmod
         {
             StopCoroutine(teleportCountdownCoroutine);
         }
-        teleportCountdownCoroutine = StartCoroutine(SpecialTeleport_.TeleportCountdownCoroutine(seconds));
+        teleportCountdownCoroutine = StartCoroutine(ModAbilities.SpecialTeleport.Instance.TeleportCountdownCoroutine(seconds));
     }
 
-    public static ModAbilities.SpecialJump SpecialJump_ = new ModAbilities.SpecialJump();
-    public static ModAbilities.SpecialTeleport SpecialTeleport_ = new ModAbilities.SpecialTeleport();
-    public static ModAbilities.SpectralArrow SpectralArrow_ = new ModAbilities.SpectralArrow();
-    public static ModAbilities.ValhallaDome ValhallaDome_ = new ModAbilities.ValhallaDome();
         /// <summary>
         /// Contains methods for calling special abilities
         /// </summary>
         public class ModAbilities
         {
-            public static List<SpecialAbilityBase> specialAbilities = new List<SpecialAbilityBase>
-        {
-            SpecialJump_,
-            SpecialTeleport_,
-            SpectralArrow_,
-            ValhallaDome_
-        };
+            public static List<SpecialAbilityBase> specialAbilities = GetAllAbilityInstances();
+            
+            /// <summary>
+            /// Gets all instances of SpecialAbilityBase subclasses
+            /// /// This method uses reflection to find all classes that inherit from SpecialAbilityBase
+            /// and attempts to retrieve a static instance of each class.
+            /// </summary>
+            /// <returns></returns>
+            public static List<SpecialAbilityBase> GetAllAbilityInstances()
+            {
+                var abilityTypes = typeof(SpecialAbilityBase).Assembly
+                    .GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(SpecialAbilityBase)));
+
+                List<SpecialAbilityBase> specialAbilities = new List<SpecialAbilityBase>();
+
+                foreach (var type in abilityTypes)
+                {
+                    // Try to get a static field called "Instance"
+                    var instanceField = type.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                    if (instanceField != null)
+                    {
+                        var instance = instanceField.GetValue(null) as SpecialAbilityBase;
+                        if (instance != null)
+                            specialAbilities.Add(instance);
+                        continue;
+                    }
+
+                    // Or try to get a static property called "Instance"
+                    var instanceProp = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    if (instanceProp != null)
+                    {
+                        var instance = instanceProp.GetValue(null) as SpecialAbilityBase;
+                        if (instance != null)
+                            specialAbilities.Add(instance);
+                    }
+                }
+                return specialAbilities;
+            }
+        
             public static void CallPendingAbilities(valheimmod Instance)
             {
                 foreach (var ability in specialAbilities)
@@ -164,6 +193,7 @@ namespace valheimmod
                 public CustomStatusEffect SpecialEffect; // Custom status effect for the special jump
                 public CustomStatusEffect PendingSpecialEffect; // Custom status effect for the special jump
                 public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
+                public static SpecialJump Instance = new SpecialJump();
 
                 public override void CallPending(valheimmod instance = null)
                 {
@@ -345,6 +375,7 @@ namespace valheimmod
                 public bool teleportPending = false;
                 public string teleportEndingMsg = "Traveling...";
                 public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
+                public static SpecialTeleport Instance = new SpecialTeleport();
 
                 public override void Call()
                 {
@@ -499,6 +530,7 @@ namespace valheimmod
                 public float defaultVelocity = 55f;
                 public float specialVelocity = 100f;
                 internal float cooldown = 30f; // cooldown time for the spectral arrow ability
+                public static SpectralArrow Instance = new SpectralArrow();
                 public override void Call()
                 {
                     return;
@@ -635,6 +667,7 @@ namespace valheimmod
                 public bool abilityUsed = false; // Flag to indicate if the ability has been used
                 internal float ttl = 30f; // Time before the dome is destroyed
                 internal float cooldown = 120f * 60f; // Time before ability can be used again
+                public static ValhallaDome Instance = new ValhallaDome();
                 public override void Call()
                 {
                     return;
@@ -654,7 +687,7 @@ namespace valheimmod
                             string uniqueId = System.Guid.NewGuid().ToString();
                             znetView.GetZDO().Set(dome_uid, uniqueId);
                             // Save this somewhere (e.g.,  field) for later lookup
-                            ValhallaDome_.LastDomeUID = uniqueId;
+                            Instance.LastDomeUID = uniqueId;
                             PlayerPrefs.SetString("Dome_LastDomeUID", uniqueId);
                             PlayerPrefs.Save();
 
@@ -817,7 +850,7 @@ namespace valheimmod
                             return;
                         }
                         Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
-                        ValhallaDome_.abilityUsed = true; // Reset the active dome
+                        ValhallaDome.Instance.abilityUsed = true; // Reset the active dome
                         CallManual();
                     }
                 }
