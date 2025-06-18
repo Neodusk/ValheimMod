@@ -230,6 +230,12 @@ namespace valheimmod
 
                     }
                 }
+
+                public void Cancel()
+                {
+                    // If the player presses the jump button when they have the jump pending buff, give super jump effect
+                }
+
                 /// <summary>
                 /// Sets up the sfx and vfx for the special jump ability.
                 /// </summary>
@@ -537,6 +543,8 @@ namespace valheimmod
                 public float specialDrawDurationMin = 0.1f + modIdentifierPostfix;
                 public static float modIdentifierPostfix = 0.012345f; // used to identify values changed by the mod on weapons
 
+                // public ItemDrop.ItemData weapon;
+                public List<ItemDrop.ItemData> weaponList = new List<ItemDrop.ItemData>(); // List of weapons to apply the spectral arrow effect to
                 public Dictionary<string, Dictionary<string, float>> weaponDefaults = new Dictionary<string, Dictionary<string, float>>(); // Store default weapon velocities
                 internal float cooldown = 30f; // cooldown time for the spectral arrow ability
                 public static SpectralArrow Instance = new SpectralArrow();
@@ -566,7 +574,7 @@ namespace valheimmod
                         }
                     }
                 }
-                public void Cancel(Player __instance, ItemDrop.ItemData weapon = null)
+                public void Cancel(Player __instance)
                 {
                     /// <summary>
                     /// Cancels the spectral arrow ability, removing the status effects and resetting the weapon projectile velocity.
@@ -594,28 +602,33 @@ namespace valheimmod
                         Jotunn.Logger.LogInfo("Resetting SpectralArrow skill level and shots fired");
                         // Player.m_localPlayer.m_skills.GetSkill(Skills.SkillType.Bows).m_level = PreviousSkill[Player.m_localPlayer];
                         ShotsFired.Remove(Player.m_localPlayer);
-                        if (ModAbilities.SpectralArrow.Instance.weaponDefaults.TryGetValue(weapon.m_shared.m_name, out var defaults))
-                    {
-                        // Helper function to check if a value ends with modIdentifierPostfix
-                        bool IsModdedValue(float value, float moddedValue)
+                        foreach (ItemDrop.ItemData weapon in weaponList)
                         {
-                            return Mathf.Abs(value - moddedValue) < 0.00001f;
+                            if (ModAbilities.SpectralArrow.Instance.weaponDefaults.TryGetValue(weapon.m_shared.m_name, out var defaults))
+                            {
+                                Jotunn.Logger.LogInfo($"Resetting weapon {weapon.m_shared.m_name} to default values");
+                                // Helper function to check if a value ends with modIdentifierPostfix
+                                bool IsModdedValue(float value, float moddedValue)
+                                {
+                                    return Mathf.Abs(value - moddedValue) < 0.00001f;
+                                }
+                                // Only revert if the current value "ends with" modIdentifierPostfix
+                                if (IsModdedValue(weapon.m_shared.m_attack.m_projectileVel, ModAbilities.SpectralArrow.Instance.specialVelocity))
+                                    weapon.m_shared.m_attack.m_projectileVel = defaults["velocity"];
+                                if (IsModdedValue(weapon.m_shared.m_attack.m_attackRange, ModAbilities.SpectralArrow.Instance.specialRange))
+                                    weapon.m_shared.m_attack.m_attackRange = defaults["range"];
+                                if (IsModdedValue(weapon.m_shared.m_attack.m_damageMultiplier, ModAbilities.SpectralArrow.Instance.specialDamageMultiplier))
+                                    weapon.m_shared.m_attack.m_damageMultiplier = defaults["dmgMultiplier"];
+                                if (IsModdedValue(weapon.m_shared.m_attack.m_projectileAccuracy, ModAbilities.SpectralArrow.Instance.specialAccuracy))
+                                    weapon.m_shared.m_attack.m_projectileAccuracy = defaults["accuracy"];
+                                if (IsModdedValue(weapon.m_shared.m_attack.m_drawDurationMin, ModAbilities.SpectralArrow.Instance.specialDrawDurationMin))
+                                    weapon.m_shared.m_attack.m_drawDurationMin = defaults["drawMin"];
+                            }
                         }
-
-                        // Only revert if the current value "ends with" modIdentifierPostfix
-                        if (IsModdedValue(weapon.m_shared.m_attack.m_projectileVel, ModAbilities.SpectralArrow.Instance.specialVelocity))
-                            weapon.m_shared.m_attack.m_projectileVel = defaults["velocity"];
-                        if (IsModdedValue(weapon.m_shared.m_attack.m_attackRange, ModAbilities.SpectralArrow.Instance.specialRange))
-                            weapon.m_shared.m_attack.m_attackRange = defaults["range"];
-                        if (IsModdedValue(weapon.m_shared.m_attack.m_damageMultiplier, ModAbilities.SpectralArrow.Instance.specialDamageMultiplier))
-                            weapon.m_shared.m_attack.m_damageMultiplier = defaults["dmgMultiplier"];
-                        if (IsModdedValue(weapon.m_shared.m_attack.m_projectileAccuracy, ModAbilities.SpectralArrow.Instance.specialAccuracy))
-                            weapon.m_shared.m_attack.m_projectileAccuracy = defaults["accuracy"];
-                        if (IsModdedValue(weapon.m_shared.m_attack.m_drawDurationMin, ModAbilities.SpectralArrow.Instance.specialDrawDurationMin))
-                            weapon.m_shared.m_attack.m_drawDurationMin = defaults["drawMin"];
-                    }
                         // PreviousSkill.Remove(Player.m_localPlayer);
                         Jotunn.Logger.LogInfo("Spectral Arrow ability cancelled");
+                        weaponList.Clear(); // Clear the weapon list after cancelling the ability
+                        weaponDefaults.Clear(); // Clear the weapon defaults after cancelling the ability
                     }
                 }
                 public override void AddEffects()

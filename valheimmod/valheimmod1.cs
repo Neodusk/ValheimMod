@@ -498,28 +498,103 @@ namespace valheimmod
                     // Track shots fired
                     ModAbilities.SpectralArrow.Instance.ShotsFired[character]++;
                     Jotunn.Logger.LogInfo($"Spectral Arrow: {character.m_name} has fired {ModAbilities.SpectralArrow.Instance.ShotsFired[character]} shots.");
+                    if (!ModAbilities.SpectralArrow.Instance.weaponList.Contains(weapon))
+                    {
+                        Jotunn.Logger.LogInfo($"Spectral Arrow: Adding {weapon.m_shared.m_name} to weapon list.");
+                        ModAbilities.SpectralArrow.Instance.weaponList.Add(weapon);
+                    }
+
                 }
             }
         }
+
+        [HarmonyPatch(typeof(Attack), "ProjectileAttackTriggered")]
+        class SpectralArrow_FireProjectile_Patch
+        {
+            static void Prefix(Attack __instance, ref float ___m_projectileVel, ref float ___m_attackRange, ref float ___m_damageMultiplier, ref float ___m_projectileAccuracy, ref float ___m_drawDurationMin)
+            {
+                var player = __instance.m_character as Player;
+                if (player != null && player.m_seman.HaveStatusEffect(valheimmod.ModAbilities.SpectralArrow.Instance.SpecialEffect.StatusEffect.m_nameHash))
+                {
+                    Jotunn.Logger.LogInfo($"Spectral Arrow: {player.m_name} is firing a spectral arrow.");
+                    // Temporarily boost the projectile's stats for this shot only
+                    ___m_projectileVel = valheimmod.ModAbilities.SpectralArrow.Instance.specialVelocity;
+                    ___m_attackRange = valheimmod.ModAbilities.SpectralArrow.Instance.specialRange;
+                    ___m_damageMultiplier = valheimmod.ModAbilities.SpectralArrow.Instance.specialDamageMultiplier;
+                    ___m_projectileAccuracy = valheimmod.ModAbilities.SpectralArrow.Instance.specialAccuracy;
+                    ___m_drawDurationMin = valheimmod.ModAbilities.SpectralArrow.Instance.specialDrawDurationMin;
+                }
+            }
+        }
+        [HarmonyPatch(typeof(Player), "UpdateAttackBowDraw")]
+        class SpectralArrow_Draw_Patch
+        {
+            static void Prefix(Player __instance, ItemDrop.ItemData weapon, float dt)
+            {
+                if (__instance.m_seman.HaveStatusEffect(valheimmod.ModAbilities.SpectralArrow.Instance.SpecialEffect.StatusEffect.m_nameHash))
+                {
+                    // Temporarily override draw duration for this frame
+                    // Save the original value
+                    float originalDrawMin = weapon.m_shared.m_attack.m_drawDurationMin;
+                    weapon.m_shared.m_attack.m_drawDurationMin = valheimmod.ModAbilities.SpectralArrow.Instance.specialDrawDurationMin;
+
+                    // Optionally, restore it in a postfix (see below)
+                    SpectralArrow_Draw_Patch_Storage.originalDrawMin = originalDrawMin;
+                    SpectralArrow_Draw_Patch_Storage.weapon = weapon;
+                }
+            }
+        }
+        [HarmonyPatch(typeof(Attack), "Start")]
+        class SpectralArrow_AttackStart_Patch
+        {
+            static void Prefix(Attack __instance, Humanoid character, Rigidbody body, ZSyncAnimation zanim, CharacterAnimEvent animEvent, VisEquipment visEquipment, ItemDrop.ItemData weapon, Attack previousAttack, float timeSinceLastAttack, float attackDrawPercentage)
+            {
+                var player = character as Player;
+                if (player != null && player.m_seman.HaveStatusEffect(valheimmod.ModAbilities.SpectralArrow.Instance.SpecialEffect.StatusEffect.m_nameHash))
+                {
+                    Jotunn.Logger.LogInfo($"Setting duration min for {player.m_name}");
+                    __instance.m_drawDurationMin = valheimmod.ModAbilities.SpectralArrow.Instance.specialDrawDurationMin;
+                }
+            }
+        }
+        static class SpectralArrow_Draw_Patch_Storage
+        {
+            public static float originalDrawMin;
+            public static ItemDrop.ItemData weapon;
+        }
+
+        [HarmonyPatch(typeof(Player), "UpdateAttackBowDraw")]
+        class SpectralArrow_Draw_Patch_Postfix
+        {
+            static void Postfix(Player __instance, ItemDrop.ItemData weapon, float dt)
+            {
+                // Restore the original value after the method runs
+                if (SpectralArrow_Draw_Patch_Storage.weapon == weapon)
+                {
+                    weapon.m_shared.m_attack.m_drawDurationMin = SpectralArrow_Draw_Patch_Storage.originalDrawMin;
+                }
+            }
+        }
+
         [HarmonyPatch(typeof(Player), "PlayerAttackInput")]
         class Player_AttackInput_Bow_Patch
         {
             static void Prefix(Player __instance, float dt)
             {
-                var weapon = __instance.GetCurrentWeapon();
-                if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
-                if (!ModAbilities.SpectralArrow.Instance.weaponDefaults.ContainsKey(weapon.m_shared.m_name))
-                {
-                    ModAbilities.SpectralArrow.Instance.weaponDefaults[weapon.m_shared.m_name] = new Dictionary<string, float>
-                        {
-                            { "velocity", weapon.m_shared.m_attack.m_projectileVel },
-                            { "range", weapon.m_shared.m_attack.m_attackRange },
-                            { "dmgMultiplier", weapon.m_shared.m_attack.m_damageMultiplier},
-                            { "accuracy", weapon.m_shared.m_attack.m_projectileAccuracy},
-                            { "drawMin", weapon.m_shared.m_attack.m_drawDurationMin},
-                        };
-                    Jotunn.Logger.LogInfo($"Spectral Arrow: Saved defaults for {weapon.m_shared.m_name}: Velocity={weapon.m_shared.m_attack.m_projectileVel}, Range={weapon.m_shared.m_attack.m_attackRange}");
-                }
+                // var weapon = __instance.GetCurrentWeapon();  
+                // if (weapon != null && weapon.m_shared != null && weapon.m_shared.m_skillType == Skills.SkillType.Bows)
+                // if (!ModAbilities.SpectralArrow.Instance.weaponDefaults.ContainsKey(weapon.m_shared.m_name))
+                // {
+                //     ModAbilities.SpectralArrow.Instance.weaponDefaults[weapon.m_shared.m_name] = new Dictionary<string, float>
+                //         {
+                //             { "velocity", weapon.m_shared.m_attack.m_projectileVel },
+                //             { "range", weapon.m_shared.m_attack.m_attackRange },
+                //             { "dmgMultiplier", weapon.m_shared.m_attack.m_damageMultiplier},
+                //             { "accuracy", weapon.m_shared.m_attack.m_projectileAccuracy},
+                //             { "drawMin", weapon.m_shared.m_attack.m_drawDurationMin},
+                //         };
+                //     Jotunn.Logger.LogInfo($"Spectral Arrow: Saved defaults for {weapon.m_shared.m_name}: Velocity={weapon.m_shared.m_attack.m_projectileVel}, Range={weapon.m_shared.m_attack.m_attackRange}");
+                // }
                 // Only proceed if player has the pending spectral arrow effect
 
                 if (__instance.m_seman.HaveStatusEffect(ModAbilities.SpectralArrow.Instance.SpecialEffect.StatusEffect.m_nameHash))
@@ -539,11 +614,17 @@ namespace valheimmod
                     // }
                     // todo: set the values to weird ending point values that no other mod or thing would use .12344321
                     // Boost arrow velocity (set on the weapon for this shot)
-                    weapon.m_shared.m_attack.m_projectileVel = ModAbilities.SpectralArrow.Instance.specialVelocity; // Set to desired fast value
-                    weapon.m_shared.m_attack.m_attackRange = ModAbilities.SpectralArrow.Instance.specialRange; // Set to desired fast value
-                    weapon.m_shared.m_attack.m_damageMultiplier = ModAbilities.SpectralArrow.Instance.specialDamageMultiplier; // Set to desired fast value
-                    weapon.m_shared.m_attack.m_projectileAccuracy = ModAbilities.SpectralArrow.Instance.specialAccuracy; // Set to desired fast value
-                    weapon.m_shared.m_attack.m_drawDurationMin = ModAbilities.SpectralArrow.Instance.specialDrawDurationMin; // Set to desired fast value
+                    // ModAbilities.SpectralArrow.Instance.weapon = weapon;
+                    // if (!ModAbilities.SpectralArrow.Instance.weaponList.Contains(weapon))
+                    // {
+                    //     Jotunn.Logger.LogInfo($"Spectral Arrow: Adding {weapon.m_shared.m_name} to weapon list.");
+                    //     ModAbilities.SpectralArrow.Instance.weaponList.Add(weapon);
+                    // }
+                    // weapon.m_shared.m_attack.m_projectileVel = ModAbilities.SpectralArrow.Instance.specialVelocity; // Set to desired fast value
+                    // weapon.m_shared.m_attack.m_attackRange = ModAbilities.SpectralArrow.Instance.specialRange; // Set to desired fast value
+                    // weapon.m_shared.m_attack.m_damageMultiplier = ModAbilities.SpectralArrow.Instance.specialDamageMultiplier; // Set to desired fast value
+                    // weapon.m_shared.m_attack.m_projectileAccuracy = ModAbilities.SpectralArrow.Instance.specialAccuracy; // Set to desired fast value
+                    // weapon.m_shared.m_attack.m_drawDurationMin = ModAbilities.SpectralArrow.Instance.specialDrawDurationMin; // Set to desired fast value
 
                     // Track shots fired
                     if (!ModAbilities.SpectralArrow.Instance.ShotsFired.ContainsKey(__instance))
@@ -552,44 +633,54 @@ namespace valheimmod
                     // After 3 shots, revert skill and velocity, remove effect
                     if ((ModAbilities.SpectralArrow.Instance.ShotsFired[__instance] >= 3) && __instance.m_seman.HaveStatusEffect(ModAbilities.SpectralArrow.Instance.SpecialEffect.StatusEffect.m_nameHash))
                     {
-                        Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {ModAbilities.SpectralArrow.Instance.ShotsFired[__instance]} shots, reverting skill and velocity.");
-                        ModAbilities.SpectralArrow.Instance.Cancel(__instance, weapon);
-
-                        Jotunn.Logger.LogInfo("Spectral Arrow: Effect ended, reverted skill and velocity.");
-                    }
-                    else
-                    {
-                        Jotunn.Logger.LogInfo($"Spectral Arrow: {__instance.m_name} has fired {ModAbilities.SpectralArrow.Instance.ShotsFired[__instance]} shots, continuing with spectral arrow.");
+                        ModAbilities.SpectralArrow.Instance.Cancel(__instance);
                     }
 
                 }
-                else
-                {
-                    if (ModAbilities.SpectralArrow.Instance.weaponDefaults.TryGetValue(weapon.m_shared.m_name, out var defaults))
-                    {
-                        // Helper function to check if a value ends with modIdentifierPostfix
-                        bool EndsWithModPostfix(float value, float postfix)
-                        {
-                            // Use a tolerance for floating point comparison
-                            return Mathf.Abs(value % 1f - postfix) < 0.00001f;
-                        }
+                // else
+                // {
+                    // if (ModAbilities.SpectralArrow.Instance.weaponDefaults.TryGetValue(weapon.m_shared.m_name, out var defaults))
+                    // {
+                    //     ModAbilities.SpectralArrow.Instance.Cancel(__instance); // Ensure we cancel if the effect is not present
+                    //     // // Helper function to check if a value ends with modIdentifierPostfix
+                    //     // bool EndsWithModPostfix(float value, float postfix)
+                    //     // {
+                    //     //     // Use a tolerance for floating point comparison
+                    //     //     return Mathf.Abs(value % 1f - postfix) < 0.00001f;
+                    //     // }
 
-                        // Only revert if the current value "ends with" modIdentifierPostfix
-                        if (EndsWithModPostfix(weapon.m_shared.m_attack.m_projectileVel, ModAbilities.SpectralArrow.modIdentifierPostfix))
-                            weapon.m_shared.m_attack.m_projectileVel = defaults["velocity"];
-                        if (EndsWithModPostfix(weapon.m_shared.m_attack.m_attackRange, ModAbilities.SpectralArrow.modIdentifierPostfix))
-                            weapon.m_shared.m_attack.m_attackRange = defaults["range"];
-                        if (EndsWithModPostfix(weapon.m_shared.m_attack.m_damageMultiplier, ModAbilities.SpectralArrow.modIdentifierPostfix))
-                            weapon.m_shared.m_attack.m_damageMultiplier = defaults["dmgMultiplier"];
-                        if (EndsWithModPostfix(weapon.m_shared.m_attack.m_projectileAccuracy, ModAbilities.SpectralArrow.modIdentifierPostfix))
-                            weapon.m_shared.m_attack.m_projectileAccuracy = defaults["accuracy"];
-                        if (EndsWithModPostfix(weapon.m_shared.m_attack.m_drawDurationMin, ModAbilities.SpectralArrow.modIdentifierPostfix))
-                            weapon.m_shared.m_attack.m_drawDurationMin = defaults["drawMin"];
-                    }
-                }
+                    //     // // Only revert if the current value "ends with" modIdentifierPostfix
+                    //     // if (EndsWithModPostfix(weapon.m_shared.m_attack.m_projectileVel, ModAbilities.SpectralArrow.modIdentifierPostfix))
+                    //     //     weapon.m_shasred.m_attack.m_projectileVel = defaults["velocity"];
+                    //     // if (EndsWithModPostfix(weapon.m_shared.m_attack.m_attackRange, ModAbilities.SpectralArrow.modIdentifierPostfix))
+                    //     //     weapon.m_shared.m_attack.m_attackRange = defaults["range"];
+                    //     // if (EndsWithModPostfix(weapon.m_shared.m_attack.m_damageMultiplier, ModAbilities.SpectralArrow.modIdentifierPostfix))
+                    //     //     weapon.m_shared.m_attack.m_damageMultiplier = defaults["dmgMultiplier"];
+                    //     // if (EndsWithModPostfix(weapon.m_shared.m_attack.m_projectileAccuracy, ModAbilities.SpectralArrow.modIdentifierPostfix))
+                    //     //     weapon.m_shared.m_attack.m_projectileAccuracy = defaults["accuracy"];
+                    //     // if (EndsWithModPostfix(weapon.m_shared.m_attack.m_drawDurationMin, ModAbilities.SpectralArrow.modIdentifierPostfix))
+                    //     //     weapon.m_shared.m_attack.m_drawDurationMin = defaults["drawMin"];
+                    // }
+                // }
             }
         }
 
+        class Player_On_Death_Patch
+        {
+            static void Postfix(Player __instance)
+            {
+                if (__instance.IsPlayer())
+                {
+                    // reset special ability states
+                    if (__instance.m_seman != null)
+                    {
+                        JumpState.SpecialJumpActive[__instance] = false;
+                        ModAbilities.SpectralArrow.Instance.Cancel(__instance);
+                    }
+                    
+                }
+            }
+        }
         [HarmonyPatch(typeof(Hud), nameof(Hud.InRadial))]
         class Hud_InRadial_RadialMenu_Patch
         {
