@@ -163,6 +163,11 @@ namespace valheimmod
                                 {
                                     loadedStatusEffects[effect.name] = remainingTime;
                                 }
+                                if (effect.name == "TeleportEffect")
+                                {
+                                    Jotunn.Logger.LogInfo($"TeleportEffect loaded with remaining time: {remainingTime}");
+                                    loadedStatusEffects["effect_day"] = PlayerPrefs.GetFloat("effect_day");
+                                }
                                 Jotunn.Logger.LogInfo($"Loaded {effect.name} status effect with remaining time: {remainingTime}");
                             }
                         }
@@ -215,7 +220,7 @@ namespace valheimmod
                 public CustomStatusEffect PendingSpecialEffect; // Custom status effect for the special jump
                 public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
                 public static SpecialJump Instance = new SpecialJump();
-                private static float cooldown = 10f;
+                private static float cooldown = 5f * 60f;
                 public override void CallPending(valheimmod instance = null)
                 {
                     // If user picks the superjump buff in radial, give them the buff
@@ -482,17 +487,16 @@ namespace valheimmod
                     foreach (var kvp in statusEffectDict)
                     {
                         string effectName = kvp.Key;
-                        float remainingTime = kvp.Value;
+                        float day = kvp.Value;
 
-                        if (effectName == SpecialEffect.StatusEffect.name)
+                        if (effectName == "effect_day")
                         {
-                            int day = PlayerPrefs.GetInt("effect_day");
                             currentDay = EnvMan.instance.GetDay();
                             Jotunn.Logger.LogInfo($"Teleport effect day: {day}, current day {currentDay}");
                             // don't re-add the duration if there is a new day since last
                             if (currentDay <= day)
                             {
-                                Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
+                                Jotunn.Logger.LogInfo($"Updating Teleport effect duration");
                                 Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
                             }
                                 // don't set a time update as the ttl is handled by the game days
@@ -564,7 +568,7 @@ namespace valheimmod
                 // public ItemDrop.ItemData weapon;
                 public List<ItemDrop.ItemData> weaponList = new List<ItemDrop.ItemData>(); // List of weapons to apply the spectral arrow effect to
                 public Dictionary<string, Dictionary<string, float>> weaponDefaults = new Dictionary<string, Dictionary<string, float>>(); // Store default weapon velocities
-                internal float cooldown = 60f * 30f; // cooldown time for the spectral arrow ability
+                internal float cooldown = 60f * 10f; // cooldown time for the spectral arrow ability
                 public static SpectralArrow Instance = new SpectralArrow();
 
                 public void RestoreWeaponDefaults()
@@ -679,7 +683,7 @@ namespace valheimmod
                     effect.m_startMessage = "$spectral_arrow_cd_start";
                     effect.m_stopMessageType = MessageHud.MessageType.TopLeft;
                     effect.m_stopMessage = "$spectral_arrow_cd_stop";
-                    effect.m_ttl = cooldown; // 30 minutes cooldown
+                    effect.m_ttl = cooldown; // 10 minutes cooldown
                     effect.m_cooldownIcon = effect.m_icon;
 
                     SpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
@@ -696,11 +700,12 @@ namespace valheimmod
 
                         if (effectName == SpecialCDEffect.StatusEffect.name)
                         {
-                            Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
+                            Jotunn.Logger.LogInfo($"Updating SpectralArrow effect duration: {effectName} with remaining time: {remainingTime}");
                             SpecialCDEffect.StatusEffect.m_ttl = remainingTime;
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
                         SpecialCDEffect.StatusEffect.m_ttl = cooldown;
+                        Jotunn.Logger.LogInfo($"SpecialCDEffect Spectral Arrow: {SpecialCDEffect.StatusEffect.m_ttl}");
                     }
 
                 }
@@ -733,7 +738,7 @@ namespace valheimmod
                 public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
                 public bool abilityUsed = false; // Flag to indicate if the ability has been used
                 internal float ttl = 30f; // Time before the dome is destroyed
-                internal float cooldown = 120f * 60f; // Time before ability can be used again
+                internal float cooldown = 15f * 60f; // Time before ability can be used again
                 public static ValhallaDome Instance = new ValhallaDome();
                 public override void Call()
                 {
@@ -807,6 +812,7 @@ namespace valheimmod
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
                         SpecialCDEffect.StatusEffect.m_ttl = cooldown;
+                        Jotunn.Logger.LogInfo($"SpecialCDEffect Valhalla Dome : {SpecialCDEffect.StatusEffect.m_ttl}");
                     }
 
                 }
