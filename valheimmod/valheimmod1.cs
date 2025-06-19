@@ -726,7 +726,6 @@ namespace valheimmod
                 Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
                 ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
-                LoggedIn = false;
                 Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
             }
         }
@@ -738,7 +737,6 @@ namespace valheimmod
                 Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
                 ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
-                LoggedIn = false;
                 Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
             }
         }
@@ -750,7 +748,6 @@ namespace valheimmod
                 Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
                 ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
-                LoggedIn = false;
                 Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
             }
         }
@@ -759,7 +756,7 @@ namespace valheimmod
         {
             static void Prefix()
             {
-                valheimmod.LoggedIn = false;
+                LoggedIn = false;
                 Jotunn.Logger.LogInfo("Transitioning to main scene, resetting LoggedIn to false.");
             }
         }

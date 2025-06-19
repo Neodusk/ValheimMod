@@ -232,6 +232,10 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
+            if (radialMenuInstance == null || !RadialMenuIsOpen)
+            {
+                return;
+            }
             Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
             Vector2 mousePos = Input.mousePosition;
             Vector2 dir = mousePos - menuCenter;
@@ -256,7 +260,8 @@ namespace valheimmod
                 {
                     var text = button.GetComponentInChildren<UnityEngine.UI.Text>();
                     bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
-                    text.color = highlighted ? Color.yellow : Color.white;
+                    if (text != null)
+                        text.color = highlighted ? Color.yellow : Color.white;
                     if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
                         radialButtonHighlights[i].SetActive(highlighted);
                 }
@@ -265,6 +270,12 @@ namespace valheimmod
             // Click to select
             if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
             {
+                if (radialButtons[hoveredIndex] != null)
+                {
+                    var btn = radialButtons[hoveredIndex].GetComponent<Button>();
+                    if (btn != null)
+                        btn.onClick.Invoke();
+                }
                 radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
             }
 

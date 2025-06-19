@@ -123,19 +123,21 @@ namespace valheimmod
                         }
                         if (Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash))
                         {
-                            if (effect.name == "TeleportEffect")
-                            {
-                                // If the teleport effect is active, we save the remaining time
-                                StatusEffect current_effect = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash);
-                                if (current_effect != null)
-                                {
-                                    remainingTime = 1;
-                                }
-                            }
-                            else
-                            {
+                            if (effect.name == "TeleportEffect" || effect.name == "PendingTeleportEffect")
+                                return; // Skip saving the teleport effect, as it is handled differently
+                            // {
+                                //     // If the teleport effect is active, we save the remaining time
+                                //     StatusEffect current_effect = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash);
+                                //     if (current_effect != null)
+                                //     {
+                                //         // save as just a 1 or 0, because we don't need to save the time
+                                //         Saved["effect_day"] = 1;
+                                //     }
+                                // }
+                                // else
+                                // {
                                 remainingTime = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash).GetRemaningTime();
-                            }
+                            // }
 
                         }
                         Saved[effect.name] = remainingTime;
@@ -171,7 +173,6 @@ namespace valheimmod
                                 if (remainingTime > 0)
                                 {
                                     loadedStatusEffects[effect.name] = remainingTime;
-                                    // loadedStatusEffects.Remove(effect.name);
                                 }
                                 Jotunn.Logger.LogInfo($"Loaded {effect.name} status effect with remaining time: {remainingTime}");
                             }
@@ -546,6 +547,7 @@ namespace valheimmod
                         Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
                         // save the last day the teleport was used, this is used to persist the CD effect through logout
                         Effects.Saved["effect_day"] = EnvMan.instance.GetDay();
+                        ModAbilities.Effects.SaveToPreferences();
                         teleportPending = false;
                     }
                 }
@@ -707,7 +709,7 @@ namespace valheimmod
                         {
                             Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
                             SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
-                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
                         SpecialCDEffect.StatusEffect.m_cooldown = 0;
                     }
@@ -813,7 +815,7 @@ namespace valheimmod
                         {
                             Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
                             SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
-                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
                         SpecialCDEffect.StatusEffect.m_cooldown = 0;
                     }
