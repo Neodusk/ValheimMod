@@ -35,6 +35,7 @@ namespace valheimmod
         private bool forsakenPowerTriggered = false;
         private const float holdThreshold = 0.35f; // seconds
         public static int currentDay = 0;
+        public static bool LoggedIn = false;
 
         // Use this class to add your own localization to the game
         // https://valheim-modding.github.io/Jotunn/tutorials/localization.html
@@ -194,10 +195,6 @@ namespace valheimmod
             AddLocs();
             AddInputs();
             PrefabManager.OnPrefabsRegistered += ModAbilities.Effects.Register;
-
-
-            // To learn more about Jotunn's features, go to
-            // https://valheim-modding.github.io/Jotunn/tutorials/overview.html
         }
 
         private void Update()
@@ -303,6 +300,19 @@ namespace valheimmod
                         }
                     }
                 }
+                ModAbilities.Effects.Save();
+                if (!LoggedIn)
+                {
+                    if (Player.m_localPlayer != null)
+                    {
+                        if (Player.m_localPlayer.m_seman != null)
+                        {
+                            Jotunn.Logger.LogInfo("Logged in. Loading Player Ability Cooldowns");
+                            LoggedIn = true;
+                            ModAbilities.Effects.Load();
+                        }
+                    }
+                }
             }
         }
 
@@ -324,10 +334,8 @@ namespace valheimmod
                         specialJump = ModAbilities.SpecialJump.Instance.Triggered;
                     }
                     JumpState.SpecialJumpActive[__instance] = specialJump;
-                    Jotunn.Logger.LogInfo($"Jump force {__instance.m_jumpForce}");
                     if (specialJump)
                     {
-                        Jotunn.Logger.LogInfo("Jumped with special jump key");
                         __instance.m_jumpForce = ModAbilities.SpecialJump.Instance.specialForce;
                     }
                     else
@@ -337,9 +345,6 @@ namespace valheimmod
                     }
                     //valheimmod.ModAbilities.SpecialJump.Instance.Triggered = false; // this flag is reset in the patch for fall damage to prevent fall damage from coming back early
                 }
-                bool s2;
-                s2 = JumpState.SpecialJumpActive.TryGetValue(__instance, out bool sj) ? sj : false;
-                Jotunn.Logger.LogInfo($"prefix jump checking fall damage. Special jump active: {s2}");
             }
         }
 
@@ -529,13 +534,13 @@ namespace valheimmod
                 {
                     ModAbilities.SpectralArrow.Instance.Cancel(player);
                 }
-                
+
             }
         }
 
 
 
-//  TODO: we should still patch item drop 
+        //  TODO: we should still patch item drop 
         [HarmonyPatch(typeof(Player), "UpdateAttackBowDraw")]
         class SpectralArrow_Draw_Patch
         {
@@ -612,7 +617,7 @@ namespace valheimmod
                         JumpState.SpecialJumpActive[__instance] = false;
                         ModAbilities.SpectralArrow.Instance.Cancel(__instance);
                     }
-                    
+
                 }
             }
         }
@@ -671,7 +676,7 @@ namespace valheimmod
                     int day = EnvMan.instance != null ? EnvMan.instance.GetDay() : 0;
                     currentDay = day;
                     Jotunn.Logger.LogInfo($"Player loaded in on day {currentDay}");
-                    
+
                 }
             }
         }
@@ -713,24 +718,28 @@ namespace valheimmod
             }
         }
 
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogoutYes))]
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnLogout))]
         public static class Logout_Patch
         {
             static void Prefix()
             {
                 Jotunn.Logger.LogInfo("Logout Prefix: Attempting Dome cleanup before menu logout.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
-                ModAbilities.Effects.Save(); // Save effects before logout
+                ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
+                LoggedIn = false;
+                Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
             }
         }
-        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuitYes))]
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnQuit))]
         public static class Quit_Patch
         {
             static void Prefix()
             {
                 Jotunn.Logger.LogInfo("Quit Prefix: Attempting Dome cleanup before menu logout.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
-                ModAbilities.Effects.Save(); // Save effects before logout
+                ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
+                LoggedIn = false;
+                Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
             }
         }
         [HarmonyPatch(typeof(ZNet), nameof(ZNet.Shutdown))]
@@ -740,7 +749,18 @@ namespace valheimmod
             {
                 Jotunn.Logger.LogInfo("ZNet.Shutdown Prefix: Attempting Dome cleanup before disconnect.");
                 valheimmod.ModAbilities.ValhallaDome.Instance.OnPlayerLogout();
-                ModAbilities.Effects.Save(); // Save effects before logout
+                ModAbilities.Effects.SaveToPreferences(); // Save effects before logout
+                LoggedIn = false;
+                Jotunn.Logger.LogInfo($"Logout Prefix: Setting LoggedIn to {LoggedIn}");
+            }
+        }
+        [HarmonyPatch(typeof(FejdStartup), "TransitionToMainScene")]
+        public static class FejdStartup_TransitionToMainScene_Patch
+        {
+            static void Prefix()
+            {
+                valheimmod.LoggedIn = false;
+                Jotunn.Logger.LogInfo("Transitioning to main scene, resetting LoggedIn to false.");
             }
         }
     }

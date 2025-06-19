@@ -111,42 +111,73 @@ namespace valheimmod
                         }
                     }
                 }
-
+                public static Dictionary<string, float> Saved = new Dictionary<string, float>();
                 public static void Save()
                 {
                     foreach (StatusEffect effect in statusEffects)
                     {
-                        // Save the status effect name and whether it is active
-                        Jotunn.Logger.LogInfo($"Saving status effect: {effect.m_name} with hash {effect.m_nameHash}");
-                        string remainingTime = effect.GetRemaningTime().ToString();
-                        if (effect.m_name == "TeleportEffect" && Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash))
+                        float remainingTime = 0;
+                        if (Player.m_localPlayer == null)
                         {
-                            // If the teleport effect is active, we save the remaining time
-                            remainingTime = "1";
+                            return;
                         }
-                        string day = EnvMan.instance.GetDay().ToString();
-                        PlayerPrefs.SetString("effect_day", day);
-                        Jotunn.Logger.LogInfo($"Saving status effect: {effect.m_name} with remaining time: {remainingTime}");
-                        PlayerPrefs.SetString(effect.m_name, Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash) ? remainingTime : "0");
+                        if (Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash))
+                        {
+                            if (effect.name == "TeleportEffect")
+                            {
+                                // If the teleport effect is active, we save the remaining time
+                                StatusEffect current_effect = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash);
+                                if (current_effect != null)
+                                {
+                                    remainingTime = 1;
+                                }
+                            }
+                            else
+                            {
+                                remainingTime = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash).GetRemaningTime();
+                            }
+
+                        }
+                        Saved[effect.name] = remainingTime;
                     }
                 }
 
+                public static void SaveToPreferences()
+                {
+                    Save();
+                    foreach (var kvp in Saved)
+                    {
+                        string effectName = kvp.Key;
+                        float remainingTime = kvp.Value;
+                        Jotunn.Logger.LogInfo($"Saving to PlayerPrefs | {effectName} status effect with remaining time: {remainingTime}");
+                        PlayerPrefs.SetFloat(effectName, (remainingTime > 0 && !float.IsNaN(remainingTime)) ? remainingTime : 0);
+                    }
+                    PlayerPrefs.Save();
+                }
+                
+                public static Dictionary<string, float> loadedStatusEffects = new Dictionary<string, float>();
                 public static void Load()
                 {
                     foreach (SpecialAbilityBase ability in specialAbilities)
                     {
+                        loadedStatusEffects.Clear();
                         // Load the status effect name and whether it is active
                         List<StatusEffect> abilityStatusEffects = ability.GetStatusEffects();
-                        Dictionary<string, string> statusEffectDict = new Dictionary<string, string>();
                         foreach (StatusEffect effect in abilityStatusEffects)
                         {
-                            string remainingTime = PlayerPrefs.GetString(effect.name, "0");
-                            if (float.TryParse(remainingTime, out float time) && time > 0)
+                            if (effect != null && effect.name != null)
                             {
-                                statusEffectDict[effect.m_name] = remainingTime;
+                                float remainingTime = PlayerPrefs.GetFloat(effect.name);
+                                if (remainingTime > 0)
+                                {
+                                    loadedStatusEffects[effect.name] = remainingTime;
+                                    // loadedStatusEffects.Remove(effect.name);
+                                }
+                                Jotunn.Logger.LogInfo($"Loaded {effect.name} status effect with remaining time: {remainingTime}");
                             }
                         }
-                        ability.updateDuration(statusEffectDict);
+                        Jotunn.Logger.LogInfo($"Loaded {ability.GetType().Name} status effects: {string.Join(", ", loadedStatusEffects.Select(kvp => $"{kvp.Key}: {kvp.Value}"))}");
+                        ability.updateDuration(loadedStatusEffects);
                     }
                 }
 
@@ -178,7 +209,7 @@ namespace valheimmod
                 }
                 /// <summary>
                 /// Updates the durations of all the special ability effects
-                public abstract void updateDuration(Dictionary<string, string> statusEffectDict); // mandatory method to update the duration of the ability
+                public abstract void updateDuration(Dictionary<string, float> statusEffectDict); // mandatory method to update the duration of the ability
                 public virtual void updateDurationByName(string name) { }
                 public virtual void updateTexture(Hud __instance, StatusEffect statusEffect, int index) { }  // todo: remove the index thing and handle that differently for the one function
                 protected virtual List<EffectList.EffectData> SetupEffectList() => null;
@@ -194,7 +225,7 @@ namespace valheimmod
                 public CustomStatusEffect PendingSpecialEffect; // Custom status effect for the special jump
                 public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
                 public static SpecialJump Instance = new SpecialJump();
-
+                private static float cooldown = 10f;
                 public override void CallPending(valheimmod instance = null)
                 {
                     // If user picks the superjump buff in radial, give them the buff
@@ -323,7 +354,7 @@ namespace valheimmod
                     effect.m_startMessageType = MessageHud.MessageType.Center;
                     //effect.m_startMessage = "$special_jumpeffect_start";
                     effect.m_stopMessageType = MessageHud.MessageType.Center;
-                    effect.m_ttl = 10f;
+                    effect.m_ttl = cooldown;
                     effect.m_cooldownIcon = effect.m_icon;
                     SpecialEffect = new CustomStatusEffect(effect, fixReference: false);
 
@@ -347,23 +378,20 @@ namespace valheimmod
                     abilitySE.Add(SpecialEffect.StatusEffect);
                     abilitySE.Add(PendingSpecialEffect.StatusEffect);
                 }
-                public override void updateDuration(Dictionary<string, string> statusEffectDict)
+                public override void updateDuration(Dictionary<string, float> statusEffectDict)
                 {
                     foreach (var kvp in statusEffectDict)
                     {
                         string effectName = kvp.Key;
-                        string remainingTime = kvp.Value;
+                        float remainingTime = kvp.Value;
 
-                        if (effectName == SpecialEffect.StatusEffect.m_name)
+                        if (effectName == SpecialEffect.StatusEffect.name)
                         {
-                            float time;
-                            if (float.TryParse(remainingTime, out time) && time > 0)
-                            {
-                                Jotunn.Logger.LogInfo($"Updating Special Jump effect duration: {effectName} with remaining time: {time}");
-                                SpecialEffect.StatusEffect.m_time = time;
-                                Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
-                            }
+                            Jotunn.Logger.LogInfo($"Updating Special Jump effect duration: {effectName} with remaining time: {remainingTime}");
+                            SpecialEffect.StatusEffect.m_ttl = remainingTime;
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
                         }
+                        SpecialEffect.StatusEffect.m_ttl = cooldown;
 
                     }
                 }
@@ -459,28 +487,25 @@ namespace valheimmod
                     abilitySE.Add(PendingSpecialEffect.StatusEffect);
                 }
 
-                public override void updateDuration(Dictionary<string, string> statusEffectDict)
+                public override void updateDuration(Dictionary<string, float> statusEffectDict)
                 {
                     foreach (var kvp in statusEffectDict)
                     {
                         string effectName = kvp.Key;
-                        string remainingTime = kvp.Value;
+                        float remainingTime = kvp.Value;
 
-                        if (effectName == SpecialEffect.StatusEffect.m_name)
+                        if (effectName == SpecialEffect.StatusEffect.name)
                         {
-                            float time;
-                            if (float.TryParse(remainingTime, out time) && time > 0)
+                            int day = PlayerPrefs.GetInt("effect_day");
+                            currentDay = EnvMan.instance.GetDay();
+                            Jotunn.Logger.LogInfo($"Teleport effect day: {day}, current day {currentDay}");
+                            // don't re-add the duration if there is a new day since last
+                            if (currentDay <= day)
                             {
-                                string day_str = PlayerPrefs.GetString("effect_day");
-                                int day = day_str != null ? int.Parse(day_str) : 0;
-                                // don't re-add the duration if there is a new day since last
-                                if (currentDay <= day)
-                                {
-                                    Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {time}");
-                                    Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
-                                }
-                                    // don't set a time update as the ttl is handled by the game days
+                                Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
+                                Player.m_localPlayer.m_seman.AddStatusEffect(SpecialEffect.StatusEffect, true);
                             }
+                                // don't set a time update as the ttl is handled by the game days
                         }
 
                     }
@@ -519,6 +544,8 @@ namespace valheimmod
                         }
                         Player.m_localPlayer.TeleportTo(homepoint, Quaternion.identity, true); // TelepoSetCustomSpawnPointrt the player to their home point
                         Player.m_localPlayer.m_seman.RemoveStatusEffect(PendingSpecialEffect.StatusEffect.m_nameHash, false); // Remove the pending teleport effect
+                        // save the last day the teleport was used, this is used to persist the CD effect through logout
+                        Effects.Saved["effect_day"] = EnvMan.instance.GetDay();
                         teleportPending = false;
                     }
                 }
@@ -546,7 +573,7 @@ namespace valheimmod
                 // public ItemDrop.ItemData weapon;
                 public List<ItemDrop.ItemData> weaponList = new List<ItemDrop.ItemData>(); // List of weapons to apply the spectral arrow effect to
                 public Dictionary<string, Dictionary<string, float>> weaponDefaults = new Dictionary<string, Dictionary<string, float>>(); // Store default weapon velocities
-                internal float cooldown = 30f; // cooldown time for the spectral arrow ability
+                internal float cooldown = 60f * 30f; // cooldown time for the spectral arrow ability
                 public static SpectralArrow Instance = new SpectralArrow();
 
                 public void RestoreWeaponDefaults()
@@ -661,7 +688,7 @@ namespace valheimmod
                     effect.m_startMessage = "$spectral_arrow_cd_start";
                     effect.m_stopMessageType = MessageHud.MessageType.TopLeft;
                     effect.m_stopMessage = "$spectral_arrow_cd_stop";
-                    effect.m_ttl = 60f * cooldown; // 30 minutes cooldown
+                    effect.m_ttl = cooldown; // 30 minutes cooldown
                     effect.m_cooldownIcon = effect.m_icon;
 
                     SpecialEffect = new CustomStatusEffect(pendeffect, fixReference: false);
@@ -669,23 +696,20 @@ namespace valheimmod
                     abilitySE.Add(SpecialEffect.StatusEffect);
                     abilitySE.Add(SpecialCDEffect.StatusEffect);
                 }
-                public override void updateDuration(Dictionary<string, string> statusEffectDict)
+                public override void updateDuration(Dictionary<string, float> statusEffectDict)
                 {
                     foreach (var kvp in statusEffectDict)
                     {
                         string effectName = kvp.Key;
-                        string remainingTime = kvp.Value;
+                        float remainingTime = kvp.Value;
 
-                        if (effectName == SpecialCDEffect.StatusEffect.m_name)
+                        if (effectName == SpecialCDEffect.StatusEffect.name)
                         {
-                            float time;
-                            if (float.TryParse(remainingTime, out time) && time > 0)
-                            {
-                                Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {time}");
-                                SpecialCDEffect.StatusEffect.m_cooldown = time;
-                                Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
-                            }
+                            Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
+                            SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
                         }
+                        SpecialCDEffect.StatusEffect.m_cooldown = 0;
                     }
 
                 }
@@ -715,7 +739,7 @@ namespace valheimmod
                 public string dome_uid = "valhalladome_uid";
                 public CustomStatusEffect SpecialEffect;
                 public CustomStatusEffect SpecialCDEffect;
-                public override List<StatusEffect> abilitySE { get; set; }
+                public override List<StatusEffect> abilitySE { get; set; } = new List<StatusEffect>();
                 public bool abilityUsed = false; // Flag to indicate if the ability has been used
                 internal float ttl = 30f; // Time before the dome is destroyed
                 internal float cooldown = 120f * 60f; // Time before ability can be used again
@@ -778,23 +802,20 @@ namespace valheimmod
                     abilitySE.Add(SpecialCDEffect.StatusEffect);
                 }
 
-                public override void updateDuration(Dictionary<string, string> statusEffectDict)
+                public override void updateDuration(Dictionary<string, float> statusEffectDict)
                 {
                     foreach (var kvp in statusEffectDict)
                     {
                         string effectName = kvp.Key;
-                        string remainingTime = kvp.Value;
+                        float remainingTime = kvp.Value;
 
-                        if (effectName == SpecialCDEffect.StatusEffect.m_name)
+                        if (effectName == SpecialCDEffect.StatusEffect.name)
                         {
-                            float time;
-                            if (float.TryParse(remainingTime, out time) && time > 0)
-                            {
-                                Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {time}");
-                                SpecialCDEffect.StatusEffect.m_cooldown = time;
-                                Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
-                            }
+                            Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
+                            SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
+                            Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, true);
                         }
+                        SpecialCDEffect.StatusEffect.m_cooldown = 0;
                     }
 
                 }
