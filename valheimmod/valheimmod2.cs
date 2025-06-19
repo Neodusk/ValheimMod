@@ -81,17 +81,17 @@ namespace valheimmod
             {
                 radialMenuInstance.SetActive(false);
                 Jotunn.Logger.LogInfo("Radial menu closed.");
+                RadialMenuIsOpen = false;
+                // reset radial item clicked
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                SetRadialAbility(0);
+                ZInput.ResetButtonStatus("Attack");
             }
             else
             {
                 Jotunn.Logger.LogWarning("Radial menu instance is null, cannot close.");
             }
-            RadialMenuIsOpen = false;
-            // reset radial item clicked
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-            SetRadialAbility(0);
-            ZInput.ResetButtonStatus("Attack");
         }
 
         private static List<GameObject> radialButtons = new List<GameObject>();
@@ -219,7 +219,7 @@ namespace valheimmod
                     radialButtonHighlights.Add(highlightObj);
                 }
             }
-            else
+            else if (radialMenuInstance != null && LoggedIn)
             {
                 radialMenuInstance.SetActive(true);
             }
@@ -276,7 +276,6 @@ namespace valheimmod
                     if (btn != null)
                         btn.onClick.Invoke();
                 }
-                radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
             }
 
             int prevIndex = gamepadSelectedIndex;
