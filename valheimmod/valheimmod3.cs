@@ -700,7 +700,7 @@ namespace valheimmod
                             SpecialCDEffect.StatusEffect.m_ttl = remainingTime;
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
-                        SpecialCDEffect.StatusEffect.m_ttl = 0;
+                        SpecialCDEffect.StatusEffect.m_ttl = cooldown;
                     }
 
                 }
@@ -775,7 +775,7 @@ namespace valheimmod
                     cddomeeffect.m_startMessageType = MessageHud.MessageType.Center;
                     cddomeeffect.m_startMessage = "$cd_domeeffect_start";
                     cddomeeffect.m_stopMessageType = MessageHud.MessageType.Center;
-                    cddomeeffect.m_ttl = cooldown; // No TTL for pending effect
+                    cddomeeffect.m_ttl = cooldown;
                     cddomeeffect.m_cooldownIcon = cddomeeffect.m_icon;
                     domeeffect.name = "DomeEffect";
                     domeeffect.m_name = "$dome_effect";
@@ -806,7 +806,7 @@ namespace valheimmod
                             SpecialCDEffect.StatusEffect.m_ttl = remainingTime;
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
-                        SpecialCDEffect.StatusEffect.m_ttl = 0;
+                        SpecialCDEffect.StatusEffect.m_ttl = cooldown;
                     }
 
                 }
