@@ -81,17 +81,17 @@ namespace valheimmod
             {
                 radialMenuInstance.SetActive(false);
                 Jotunn.Logger.LogInfo("Radial menu closed.");
+                RadialMenuIsOpen = false;
+                // reset radial item clicked
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                SetRadialAbility(0);
+                ZInput.ResetButtonStatus("Attack");
             }
             else
             {
                 Jotunn.Logger.LogWarning("Radial menu instance is null, cannot close.");
             }
-            RadialMenuIsOpen = false;
-            // reset radial item clicked
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-            SetRadialAbility(0);
-            ZInput.ResetButtonStatus("Attack");
         }
 
         private static List<GameObject> radialButtons = new List<GameObject>();
@@ -219,7 +219,7 @@ namespace valheimmod
                     radialButtonHighlights.Add(highlightObj);
                 }
             }
-            else
+            else if (radialMenuInstance != null && LoggedIn)
             {
                 radialMenuInstance.SetActive(true);
             }
@@ -232,6 +232,10 @@ namespace valheimmod
 
         public static void HandleRadialMenu()
         {
+            if (radialMenuInstance == null || !RadialMenuIsOpen)
+            {
+                return;
+            }
             Vector2 menuCenter = (Vector2)radialMenuInstance.transform.position;
             Vector2 mousePos = Input.mousePosition;
             Vector2 dir = mousePos - menuCenter;
@@ -256,7 +260,8 @@ namespace valheimmod
                 {
                     var text = button.GetComponentInChildren<UnityEngine.UI.Text>();
                     bool highlighted = (i == hoveredIndex) || (i == gamepadSelectedIndex);
-                    text.color = highlighted ? Color.yellow : Color.white;
+                    if (text != null)
+                        text.color = highlighted ? Color.yellow : Color.white;
                     if (radialButtonHighlights.Count > i && radialButtonHighlights[i] != null)
                         radialButtonHighlights[i].SetActive(highlighted);
                 }
@@ -265,7 +270,12 @@ namespace valheimmod
             // Click to select
             if (hoveredIndex != -1 && Input.GetMouseButtonDown(0))
             {
-                radialButtons[hoveredIndex].GetComponent<Button>().onClick.Invoke();
+                if (radialButtons[hoveredIndex] != null)
+                {
+                    var btn = radialButtons[hoveredIndex].GetComponent<Button>();
+                    if (btn != null)
+                        btn.onClick.Invoke();
+                }
             }
 
             int prevIndex = gamepadSelectedIndex;
