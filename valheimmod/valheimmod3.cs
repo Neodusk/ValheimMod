@@ -124,21 +124,10 @@ namespace valheimmod
                         if (Player.m_localPlayer.m_seman.HaveStatusEffect(effect.m_nameHash))
                         {
                             if (effect.name == "TeleportEffect" || effect.name == "PendingTeleportEffect")
+                            {
                                 return; // Skip saving the teleport effect, as it is handled differently
-                            // {
-                                //     // If the teleport effect is active, we save the remaining time
-                                //     StatusEffect current_effect = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash);
-                                //     if (current_effect != null)
-                                //     {
-                                //         // save as just a 1 or 0, because we don't need to save the time
-                                //         Saved["effect_day"] = 1;
-                                //     }
-                                // }
-                                // else
-                                // {
-                                remainingTime = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash).GetRemaningTime();
-                            // }
-
+                            }
+                            remainingTime = Player.m_localPlayer.m_seman.GetStatusEffect(effect.m_nameHash).GetRemaningTime();
                         }
                         Saved[effect.name] = remainingTime;
                     }
@@ -708,10 +697,10 @@ namespace valheimmod
                         if (effectName == SpecialCDEffect.StatusEffect.name)
                         {
                             Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
-                            SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
+                            SpecialCDEffect.StatusEffect.m_ttl = remainingTime;
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
-                        SpecialCDEffect.StatusEffect.m_cooldown = 0;
+                        SpecialCDEffect.StatusEffect.m_ttl = 0;
                     }
 
                 }
@@ -814,10 +803,10 @@ namespace valheimmod
                         if (effectName == SpecialCDEffect.StatusEffect.name)
                         {
                             Jotunn.Logger.LogInfo($"Updating ValhallaDome effect duration: {effectName} with remaining time: {remainingTime}");
-                            SpecialCDEffect.StatusEffect.m_cooldown = remainingTime;
+                            SpecialCDEffect.StatusEffect.m_ttl = remainingTime;
                             Player.m_localPlayer.m_seman.AddStatusEffect(SpecialCDEffect.StatusEffect, false);
                         }
-                        SpecialCDEffect.StatusEffect.m_cooldown = 0;
+                        SpecialCDEffect.StatusEffect.m_ttl = 0;
                     }
 
                 }
